@@ -12,7 +12,7 @@ class Dataset:
         if data.shape[0] != labels.shape[0]:
             raise ValueError(
                 f"data and label sizes do not match "
-                f"({data.shape[-1]} != {labels.shape[-1]})"
+                f"({data.shape[0]} != {labels.shape[0]})"
             )
         self._data = data
         self._labels = labels
@@ -35,6 +35,43 @@ class Dataset:
         lt_data = self.data[choices[:lt_dataset_size], :]
         lt_labels = self.labels[choices[:lt_dataset_size], :]
         return Dataset(lt_data, lt_labels), Dataset(rt_data, rt_labels)
+
+    def kfold(
+        self,
+        splits: int = 2,
+        shuffle: bool = False
+    ) -> list[tuple[Dataset, Dataset]]:
+        if not 1 < splits <= self.data.shape[0]:
+            raise ValueError(
+                f"splits must be in [2, {self.data.shape[0]}]"
+                f" - provided {splits}"
+            )
+        choices = (
+            np.random.permutation(self.size)
+            if shuffle else np.arange(0, self.size)
+        )
+        data = np.array_split(self.data[choices, :], splits, axis=0)
+        labels = np.array_split(self.labels[choices, :], splits, axis=0)
+        return [
+            (
+                Dataset(
+                    np.concatenate(data[:k] + data[k+1:], axis=0),
+                    np.concatenate(labels[:k] + labels[k+1:], axis=0)
+                ),
+                Dataset(data[k], labels[k])
+            ) for k in range(splits)
+        ]
+
+    def shuffled(self, size: int):
+        if size > self.size:
+            raise ValueError(
+                f"largest possible size {self.size}"
+                f" - provided {size}"
+            )
+        choices = np.random.choice(self.data.shape[1], size=size, replace=False)
+        data = self.data[choices, :]
+        labels = self.labels[choices, :]
+        return Dataset(data, labels)
 
     @property
     def data(self) -> np.ndarray:
@@ -105,9 +142,9 @@ class CKPLoader(Loader):
             raise ValueError("labels shape must be 1-dimensional")
         encoded_labels = np.zeros(shape=(labels.shape[0], len(CKPLoader.Labels)))
         for n in range(labels.shape[0]):
-            if labels[n] < 1 or labels[n] > len(CKPLoader.Labels):
+            if not 1 <= labels[n] <= len(CKPLoader.Labels):
                 raise ValueError(
-                    f"labels value must be in (1, {len(CKPLoader.Labels)})"
+                    f"labels value must be in [1, {len(CKPLoader.Labels)})"
                     f" - provided {labels[n]}"
                 )
             encoded_labels[n][labels[n]-1] = 1
@@ -133,8 +170,10 @@ class CKPLoader(Loader):
                     os.path.join(folder_path, filename),
                     cv2.IMREAD_GRAYSCALE
                 )
-                image = cv2.resize(image, kwargs["shape"])
+                image = cv2.resize(image, kwargs.get("shape", (224, 224)))
                 image = image[..., np.newaxis]
+                image = image.astype('float32')
+                image = image/255 if kwargs.get("normalize", True) else image
                 data.append(image)
                 labels.append(getattr(CKPLoader.Labels, folder.upper()).value)
         self._dataset = Dataset(
@@ -161,10 +200,3 @@ class MMILoader(Loader):
 
     def load(self, **kwargs) -> None:
         pass
-
-
-loader = CKPLoader()
-loader.load(shape=(224,224))
-dataset = loader.dataset
-lt, rt = dataset.slice(84)
-print(rt.labels)
