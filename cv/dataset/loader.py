@@ -130,7 +130,7 @@ class MMILoader(Loader):
         pass
 
     def __init__(self):
-        pass
+        super().__init__()
 
     @staticmethod
     def encode(labels: np.ndarray) -> np.ndarray:
