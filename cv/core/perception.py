@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import cv2
 import numpy as np
 from dataclasses import dataclass
@@ -7,34 +8,34 @@ from dataclasses import dataclass
 @dataclass
 class BoundingBox:
 
-    __tl: tuple[int, int]
-    __br: tuple[int, int]
-    __width: int
-    __height: int
+    _tl: tuple[int, int]
+    _br: tuple[int, int]
+    _width: int
+    _height: int
 
     def draw(
         self,
         frame: np.ndarray,
         color: tuple[int, int, int] = (0, 255, 0),
-        thickness: int = 2
+        thickness: int = 3
     ) -> np.ndarray:
-        return cv2.rectangle(frame, self.__tl, self.__br, color, thickness)
+        return cv2.rectangle(frame, self._tl, self._br, color, thickness)
 
     @property
     def tl(self) -> tuple[int, int]:
-        return self.__tl
+        return self._tl
 
     @property
     def br(self) -> tuple[int, int]:
-        return self.__br
+        return self._br
 
     @property
     def width(self) -> int:
-        return self.__width
+        return self._width
 
     @property
     def height(self) -> int:
-        return self.__height
+        return self._height
 
 
 class FaceDetector:
@@ -47,24 +48,24 @@ class FaceDetector:
         max_size: tuple[int, int] = None,
         flags: int = cv2.CASCADE_SCALE_IMAGE,
     ):
-        self.__scale_factor = scale_factor
-        self.__min_neighbors = min_neighbors
-        self.__min_size = min_size
-        self.__max_size = max_size
-        self.__flags = flags
-        self.__face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        self._scale_factor = scale_factor
+        self._min_neighbors = min_neighbors
+        self._min_size = min_size
+        self._max_size = max_size
+        self._flags = flags
+        self._face_cascade = cv2.CascadeClassifier(
+            os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml")
         )
 
     def detect(self, frame: np.ndarray) -> list[BoundingBox]:
         grayscale = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = self.__face_cascade.detectMultiScale(
+        faces = self._face_cascade.detectMultiScale(
             grayscale,
-            scaleFactor=self.__scale_factor,
-            minNeighbors=self.__min_neighbors,
-            minSize=self.__min_size,
-            maxSize=self.__max_size,
-            flags=self.__flags
+            scaleFactor=self._scale_factor,
+            minNeighbors=self._min_neighbors,
+            minSize=self._min_size,
+            maxSize=self._max_size,
+            flags=self._flags
         )
         face_bounding_boxes = []
         if len(faces) > 0:
@@ -76,20 +77,20 @@ class FaceDetector:
 
     @property
     def scale_factor(self) -> float:
-        return self.__scale_factor
+        return self._scale_factor
 
     @property
     def min_neighbors(self) -> int:
-        return self.__min_neighbors
+        return self._min_neighbors
 
     @property
     def min_size(self) -> tuple[int, int]:
-        return self.__min_size
+        return self._min_size
 
     @property
     def max_size(self) -> tuple[int, int]:
-        return self.__max_size
+        return self._max_size
 
     @property
     def flags(self) -> int:
-        return self.__flags
+        return self._flags
