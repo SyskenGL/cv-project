@@ -17,6 +17,25 @@ class Dataset:
         self._data = data
         self._labels = labels
 
+    def slice(
+        self,
+        portion: float = 0.25,
+        shuffle: bool = False
+    ) -> tuple[Dataset, Dataset]:
+        if not 0 < portion <= self.size:
+            raise ValueError(
+                f"portion must be in (0, {self.size}]"
+                f" - provided {portion}"
+            )
+        choices = np.random.permutation(self.size) if shuffle else np.arange(0, self.size)
+        rt_dataset_size = int(self.size * portion) if (0 < portion < 1) else portion
+        lt_dataset_size = self.size - rt_dataset_size
+        rt_data = self.data[choices[lt_dataset_size:], :]
+        rt_labels = self.labels[choices[lt_dataset_size:], :]
+        lt_data = self.data[choices[:lt_dataset_size], :]
+        lt_labels = self.labels[choices[:lt_dataset_size], :]
+        return Dataset(lt_data, lt_labels), Dataset(rt_data, rt_labels)
+
     @property
     def data(self) -> np.ndarray:
         return self._data
@@ -142,3 +161,10 @@ class MMILoader(Loader):
 
     def load(self, **kwargs) -> None:
         pass
+
+
+loader = CKPLoader()
+loader.load(shape=(224,224))
+dataset = loader.dataset
+lt, rt = dataset.slice(84)
+print(rt.labels)
