@@ -65,7 +65,7 @@ class Dataset:
             ) for k in range(splits)
         ]
 
-    def shuffled(self, size: int):
+    def shuffle(self, size: int):
         if size > self.size:
             raise ValueError(
                 f"largest possible size {self.size}"
