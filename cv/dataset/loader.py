@@ -27,7 +27,10 @@ class Dataset:
                 f"portion must be in (0, {self.size}]"
                 f" - provided {portion}"
             )
-        choices = np.random.permutation(self.size) if shuffle else np.arange(0, self.size)
+        choices = (
+            np.random.permutation(self.size)
+            if shuffle else np.arange(0, self.size)
+        )
         rt_dataset_size = int(self.size * portion) if (0 < portion < 1) else portion
         lt_dataset_size = self.size - rt_dataset_size
         rt_data = self.data[choices[lt_dataset_size:], :]
@@ -68,7 +71,7 @@ class Dataset:
                 f"largest possible size {self.size}"
                 f" - provided {size}"
             )
-        choices = np.random.choice(self.data.shape[1], size=size, replace=False)
+        choices = np.random.choice(np.random.permutation(size))
         data = self.data[choices, :]
         labels = self.labels[choices, :]
         return Dataset(data, labels)
