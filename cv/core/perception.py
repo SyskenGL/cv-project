@@ -4,8 +4,7 @@ import os
 import cv2
 from torch import nn
 import numpy as np
-from enum import Enum, auto
-from frozendict import frozendict
+from enum import Enum
 from dataclasses import dataclass
 from cv.dataset.loader import CKPLoader, MMILoader
 
