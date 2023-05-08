@@ -1,8 +1,13 @@
 #!/usr/bin/env python
+from __future__ import annotations
 import os
 import cv2
+from torch import nn
 import numpy as np
+from enum import Enum, auto
+from frozendict import frozendict
 from dataclasses import dataclass
+from cv.dataset.loader import CKPLoader, MMILoader
 
 
 @dataclass
@@ -94,3 +99,52 @@ class FaceDetector:
     @property
     def flags(self) -> int:
         return self._flags
+
+
+class DeXpression:
+
+    class MType(Enum):
+        CKP = len(CKPLoader.Labels)
+        MMI = len(MMILoader.Labels)
+
+    def __init__(self, mtype: str = "CKP"):
+        if mtype.upper() not in DeXpression.MType.__members__:
+            raise ValueError(
+                f"mtype must be one of {list(DeXpression.MType.__members__.keys())}"
+                f" - provided {mtype}"
+            )
+        self._cnn = frozendict({
+            # PPB
+            "conv-1": nn.Conv2d(in_channels=1, out_channels=64, kernel_size=7, stride=2, padding=3),
+            "pool-1": nn.MaxPool2d(kernel_size=3, stride=2),
+            "lnrm-1": nn.LayerNorm([64, 55, 55]),
+            # Feat-Ex-1
+            "conv-2a": nn.Conv2d(in_channels=64, out_channels=96, kernel_size=1),
+            "conv-2b": nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, padding=1),
+            "pool-2a": nn.MaxPool2d(kernel_size=3, padding=1),
+            "conv-2c": nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1),
+            "pool-2b": nn.MaxPool2d(kernel_size=3, stride=2),
+            # Feat-Ex-2
+            "conv-3a": nn.Conv2d(in_channels=272, out_channels=96, kernel_size=1),
+            "conv-3b": nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, padding=1),
+            "pool-3a": nn.MaxPool2d(kernel_size=3, padding=1),
+            "conv-3c": nn.Conv2d(in_channels=272, out_channels=64, kernel_size=1),
+            "pool-3b": nn.MaxPool2d(kernel_size=3, stride=2),
+        })
+        self._classifier = (
+            nn.Linear(
+                in_features=272*13**2,
+                out_features=getattr(DeXpression.MType.CKP, mtype).value
+            ),
+            nn.LogSoftmax(dim=1),
+            nn.BatchNorm2d(272),
+            nn.Dropout(p=0.2)
+        )
+
+    @property
+    def cnn(self):
+        return self._cnn
+
+    @property
+    def classifier(self) -> tuple:
+        return self._classifier

@@ -110,7 +110,7 @@ class Loader:
     def decode(labels: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
-    def load(self, **kwargs) -> None:
+    def load(self, **kwargs: dict) -> None:
         raise NotImplementedError
 
     @property
@@ -164,7 +164,7 @@ class CKPLoader(Loader):
             np.argmax(labels[n, :]) + 1 for n in range(labels.shape[0])
         ])
 
-    def load(self, **kwargs) -> None:
+    def load(self, **kwargs: dict) -> None:
         data, labels = [], []
         for folder in os.listdir(self.path):
             folder_path = os.path.join(self.path, folder)
@@ -174,7 +174,7 @@ class CKPLoader(Loader):
                     cv2.IMREAD_GRAYSCALE
                 )
                 image = cv2.resize(image, kwargs.get("shape", (224, 224)))
-                image = image[..., np.newaxis]
+                image = image[np.newaxis, ...]
                 image = image.astype('float32')
                 image = image/255 if kwargs.get("normalize", True) else image
                 data.append(image)
@@ -188,7 +188,12 @@ class CKPLoader(Loader):
 class MMILoader(Loader):
 
     class Labels(Enum):
-        pass
+        ANGER = auto()
+        DISGUST = auto()
+        FEAR = auto()
+        HAPPINESS = auto()
+        SADNESS = auto()
+        SURPRISE = auto()
 
     def __init__(self):
         super().__init__()
@@ -201,5 +206,5 @@ class MMILoader(Loader):
     def decode(labels: np.ndarray) -> np.ndarray:
         pass
 
-    def load(self, **kwargs) -> None:
+    def load(self, **kwargs: dict) -> None:
         pass
