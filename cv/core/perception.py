@@ -2,7 +2,8 @@
 from __future__ import annotations
 import os
 import cv2
-from torch import nn
+import torch
+import torch.nn as nn
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass
@@ -116,25 +117,54 @@ class DeXpression(nn.Module):
         out_features = getattr(DeXpression.MType.CKP, mtype).value
         # PPB
         self._conv_1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=7, stride=2, padding=3)
-        self._pool_1 = nn.MaxPool2d(kernel_size=3, stride=2)
+        self._pool_1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         self._lnrm_1 = nn.LayerNorm([64, 55, 55])
         # Feat-Ex-1
-        self._conv_2a = nn.Conv2d(in_channels=64, out_channels=96, kernel_size=1)
-        self._conv_2b = nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, padding=1)
-        self._pool_2a = nn.MaxPool2d(kernel_size=3, padding=1)
-        self._conv_2c = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1)
-        self._pool_2b = nn.MaxPool2d(kernel_size=3, stride=2)
+        self._conv_2a = nn.Conv2d(in_channels=64, out_channels=96, kernel_size=1, stride=1, padding=0)
+        self._conv_2b = nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, stride=1, padding=1)
+        self._pool_2a = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
+        self._conv_2c = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1, padding=0)
+        self._pool_2b = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         # Feat-Ex-2
-        self._conv_3a = nn.Conv2d(in_channels=272, out_channels=96, kernel_size=1)
-        self._conv_3b = nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, padding=1)
-        self._pool_3a = nn.MaxPool2d(kernel_size=3, padding=1)
-        self._conv_3c = nn.Conv2d(in_channels=272, out_channels=64, kernel_size=1)
-        self._pool_3b = nn.MaxPool2d(kernel_size=3, stride=2)
+        self._conv_3a = nn.Conv2d(in_channels=272, out_channels=96, kernel_size=1, stride=1, padding=0)
+        self._conv_3b = nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, stride=1, padding=1)
+        self._pool_3a = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
+        self._conv_3c = nn.Conv2d(in_channels=272, out_channels=64, kernel_size=1, stride=1, padding=0)
+        self._pool_3b = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         # Classifier
         self._lfc = nn.Linear(in_features=272*13**2, out_features=out_features)
         self._softmax = nn.LogSoftmax(dim=1)
         self._bnorm = nn.BatchNorm2d(272)
         self._dropout = nn.Dropout(p=0.2)
 
-    def forward(self):
-        pass
+    def forward(
+        self,
+        in_data: torch.Tensor,
+        dropout: bool = True,
+        batch_normalization: bool = True
+    ):
+        # PPB
+        conv_1_out = nn.functional.relu(self._conv_1(in_data))
+        pool_1_out = self._pool_1(conv_1_out)
+        lnrm_1_out = self._lnrm_1(pool_1_out)
+        # Feat-Ex-1
+        conv_2a_out = nn.functional.relu(self._conv_2a(lnrm_1_out))
+        conv_2b_out = nn.functional.relu(self._conv_2b(conv_2a_out))
+        pool_2a_out = self._pool_2a(lnrm_1_out)
+        conv_2c_out = nn.functional.relu(self._conv_2c(pool_2a_out))
+        cat_2_out = torch.cat((conv_2b_out, conv_2c_out), 1)
+        pool_2b_out = self._pool_2b(cat_2_out)
+        # Feat-Ex-2
+        conv_3a_out = nn.functional.relu(self._conv_3a(pool_2b_out))
+        conv_3b_out = nn.functional.relu(self._conv_3b(conv_3a_out))
+        pool_3a_out = self._pool_3a(pool_2b_out)
+        conv_3c_out = nn.functional.relu(self._conv_3c(pool_3a_out))
+        cat_3_out = torch.cat((conv_3b_out, conv_3c_out), 1)
+        pool_3b_out = self._pool_3b(cat_3_out)
+        # Classifier
+        pool_3b_out = self._dropout(pool_3b_out) if dropout else pool_3b_out
+        pool_3b_out = self._bnorm(pool_3b_out) if batch_normalization else pool_3b_out
+        pool_3b_flatten = torch.flatten(pool_3b_out)[None, :]
+        output = self._lfc(pool_3b_flatten)
+        logits = self._softmax(output)
+        return logits
