@@ -69,7 +69,7 @@ if __name__ == "__main__":
             cv2.sumElems(cv2.absdiff(processed[i], processed[i + 1]))[0]
             for i in range(len(processed) - 1)
         ]
-        threshold = np.mean(diff) + 0.55 * np.std(diff)
+        threshold = np.mean(diff) + 0.65 * np.std(diff)
         iframes = [frames[i] for i in range(len(diff)) if diff[i] >= threshold]
         iframes = [] if len(iframes) <= 2 else iframes[2:]
         if len(iframes) == 0:
@@ -83,4 +83,11 @@ if __name__ == "__main__":
             pass
             # da tagliare individuado la faccia
 
-        #save
+        # Saving images
+        save_path = os.path.join(sys.argv[2], labels[emotion])
+        for i in range(len(iframes)):
+            cv2.imwrite(os.path.join(save_path, f"{sid}-{i:03}.png"), iframes[i])
+        print(
+            f"\t{len(iframes)} images representing {labels[emotion]} "
+            f"saved in folder {os.path.join(save_path)}"
+        )
