@@ -32,8 +32,8 @@ if __name__ == "__main__":
         print(f"- Processing video {sid}")
 
         # Get video type
-        meta_1 = BeautifulSoup(open(os.path.join(path, "session.xml")), "xml")
-        view_type = meta_1.find("track").get("view")
+        meta = BeautifulSoup(open(os.path.join(path, "session.xml")), "xml")
+        view_type = meta.find("track").get("view")
         if view_type not in ["0", "2"]:
             print(
                 f"\tVideo {sid} discarded due to "
@@ -42,8 +42,8 @@ if __name__ == "__main__":
             continue
 
         # Get emotion type
-        meta_2 = BeautifulSoup(open(os.path.join(path, f"{sid}.xml")), "xml")
-        emotion = int(meta_2.find("Metatag", {"Name": "Emotion"}).get("Value")) - 1
+        meta = BeautifulSoup(open(os.path.join(path, f"{sid}.xml")), "xml")
+        emotion = int(meta.find("Metatag", {"Name": "Emotion"}).get("Value")) - 1
         if emotion > len(labels):
             print(
                 f"\tVideo {sid} discarded due to "
@@ -73,11 +73,11 @@ if __name__ == "__main__":
         iframes = [frames[i] for i in range(len(diff)) if diff[i] >= threshold]
         iframes = [] if len(iframes) <= 2 else iframes[2:]
         if len(iframes) == 0:
-            print(f"\tNo iframes found for video {sid}")
+            print(f"\tNo iframes extracted for video {sid}")
             continue
-        print(f"\t{len(iframes)} iframes found for video {sid}")
+        print(f"\t{len(iframes)} iframes extracted for video {sid}")
 
-        if len(meta_1.find_all("annotation")) == 2 and view_type == "0":
+        if view_type == "0":
             iframes = [cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) for frame in iframes]
         elif view_type == "1":
             pass
