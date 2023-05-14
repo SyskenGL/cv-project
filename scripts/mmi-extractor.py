@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
         # Get emotion type
         meta_2 = BeautifulSoup(open(os.path.join(path, f"{sid}.xml")), "xml")
-        emotion = int(meta_2.find("Metatag", {"Name": "Emotion"}).get("Value"))
+        emotion = int(meta_2.find("Metatag", {"Name": "Emotion"}).get("Value"))-1
         if emotion > len(labels):
             print(
                 f"\tVideo {sid} discarded due to "
