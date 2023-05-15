@@ -80,9 +80,12 @@ if __name__ == "__main__":
         if view_type == "0":
             iframes = [cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) for frame in iframes]
         elif view_type == "1":
-            pass
-            # da tagliare individuado la faccia
-
+            fd = FaceDetector(min_neighbors=7, min_size=(100, 100))
+            for i in range(iframes):
+                faces = fd.detect(iframes[i])
+                height, width, center = iframes[i].shape
+                if len(faces) > 0:
+                    iframes[i] = iframes[i][100:height, int(width/2):width] if faces[0].br[0] > (width/2) else iframes[i][100:height, 10:int(width/2)]
         # Saving images
         save_path = os.path.join(sys.argv[2], labels[emotion])
         for i in range(len(iframes)):
