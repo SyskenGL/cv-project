@@ -42,6 +42,10 @@ class BoundingBox:
     def height(self) -> int:
         return self._height
 
+    @property
+    def area(self) -> int:
+        return self._height * self._width
+
 
 class FaceDetector:
 
@@ -78,6 +82,7 @@ class FaceDetector:
                 BoundingBox((x, y), (x + w, y + h), w, h)
                 for (x, y, w, h) in faces
             ]
+            face_bounding_boxes.sort(key=lambda bb: bb.area, reverse=True)
         return face_bounding_boxes
 
     @property

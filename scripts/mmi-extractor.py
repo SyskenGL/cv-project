@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import sys
 import cv2
 import glob
@@ -24,16 +25,20 @@ if __name__ == "__main__":
     for folder in [folder for folder in folders if not os.path.exists(folder)]:
         os.mkdir(folder)
 
+    # Initialize Face Detector
+    face_detector = FaceDetector(min_neighbors=7, min_size=(120, 120))
+    total_images = [0, 0, 0, 0, 0, 0]
+
     # Loop on all session folders
     for session in os.listdir(sys.argv[1]):
 
         path = os.path.join(sys.argv[1], session)
         sid = os.path.basename(glob.glob(os.path.join(path, "*.avi"))[0]).split(".")[0]
-        print(f"- Processing video {sid}")
+        print(f"• Processing video {sid}")
 
         # Get video type
-        meta = BeautifulSoup(open(os.path.join(path, "session.xml")), "xml")
-        view_type = meta.find("track").get("view")
+        session_meta = BeautifulSoup(open(os.path.join(path, "session.xml")), "xml")
+        view_type = session_meta.find("track").get("view")
         if view_type not in ["0", "2"]:
             print(
                 f"\tVideo {sid} discarded due to "
@@ -42,8 +47,8 @@ if __name__ == "__main__":
             continue
 
         # Get emotion type
-        meta = BeautifulSoup(open(os.path.join(path, f"{sid}.xml")), "xml")
-        emotion = int(meta.find("Metatag", {"Name": "Emotion"}).get("Value")) - 1
+        sid_meta = BeautifulSoup(open(os.path.join(path, f"{sid}.xml")), "xml")
+        emotion = int(sid_meta.find("Metatag", {"Name": "Emotion"}).get("Value")) - 1
         if emotion > len(labels):
             print(
                 f"\tVideo {sid} discarded due to "
@@ -77,16 +82,29 @@ if __name__ == "__main__":
             continue
         print(f"\t{len(iframes)} iframes extracted for video {sid}")
 
+        # Process the iframes
         if view_type == "0":
-            iframes = [cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) for frame in iframes]
-        elif view_type == "1":
-            fd = FaceDetector(min_neighbors=7, min_size=(100, 100))
-            for i in range(iframes):
-                faces = fd.detect(iframes[i])
-                height, width, center = iframes[i].shape
-                if len(faces) > 0:
-                    iframes[i] = iframes[i][100:height, int(width/2):width] if faces[0].br[0] > (width/2) else iframes[i][100:height, 10:int(width/2)]
+            if "oao_aucs.xml" in session_meta.find_all("annotation")[-1].get("filename"):
+                print(f"\tCropping iframes")
+                iframes = [iframe[0:iframe.shape[0], 100:iframe.shape[1]-100] for iframe in iframes]
+            else:
+                print(f"\tRotating iframes")
+                iframes = [cv2.rotate(iframe, cv2.ROTATE_90_CLOCKWISE) for iframe in iframes]
+                iframes = [iframe[10:iframe.shape[0], 0:iframe.shape[1]] for iframe in iframes]
+        elif view_type == "2":
+            print(f"\tDetecting and cropping face")
+            for i in range(len(iframes)):
+                faces = face_detector.detect(iframes[i])
+                height, width, _ = iframes[i].shape
+                assert len(faces) > 0
+                iframes[i] = (
+                    iframes[i][100:height, int(width/2):width]
+                    if faces[0].br[0] > (width/2) else
+                    iframes[i][100:height, 10:int(width/2)]
+                )
+
         # Saving images
+        total_images[emotion] += len(iframes)
         save_path = os.path.join(sys.argv[2], labels[emotion])
         for i in range(len(iframes)):
             cv2.imwrite(os.path.join(save_path, f"{sid}-{i:03}.png"), iframes[i])
@@ -94,3 +112,8 @@ if __name__ == "__main__":
             f"\t{len(iframes)} images representing {labels[emotion]} "
             f"saved in folder {os.path.join(save_path)}"
         )
+
+    print(
+        f"• Extraction finished with a total of {sum(total_images)} images:\n" +
+        "".join(f"\t{labels[i]}: {total_images[i]}\n" for i in range(len(labels)))
+    )
