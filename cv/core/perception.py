@@ -143,11 +143,10 @@ class DeXpression(nn.Module):
 
     def forward(
         self,
-        in_data: np.ndarray,
+        in_data: torch.Tensor,
         dropout: bool = True,
         batch_normalization: bool = True
     ):
-        in_data = torch.from_numpy(in_data)
         # PPB
         conv_1_out = nn.functional.relu(self._conv_1(in_data))
         pool_1_out = self._pool_1(conv_1_out)
