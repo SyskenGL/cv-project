@@ -138,16 +138,16 @@ class DeXpression(nn.Module):
         self._pool_3b = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         # Classifier
         self._lfc = nn.Linear(in_features=272*13**2, out_features=out_features)
-        self._softmax = nn.LogSoftmax(dim=1)
         self._bnorm = nn.BatchNorm2d(272)
         self._dropout = nn.Dropout(p=0.2)
 
     def forward(
         self,
-        in_data: torch.Tensor,
+        in_data: np.ndarray,
         dropout: bool = True,
         batch_normalization: bool = True
     ):
+        in_data = torch.from_numpy(in_data)
         # PPB
         conv_1_out = nn.functional.relu(self._conv_1(in_data))
         pool_1_out = self._pool_1(conv_1_out)
@@ -169,7 +169,7 @@ class DeXpression(nn.Module):
         # Classifier
         pool_3b_out = self._dropout(pool_3b_out) if dropout else pool_3b_out
         pool_3b_out = self._bnorm(pool_3b_out) if batch_normalization else pool_3b_out
-        pool_3b_flatten = torch.flatten(pool_3b_out)[None, :]
+        pool_3b_flatten = torch.flatten(pool_3b_out, start_dim=1)
         output = self._lfc(pool_3b_flatten)
         logits = self._softmax(output)
         return logits

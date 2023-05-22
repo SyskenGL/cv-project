@@ -19,7 +19,7 @@ if __name__ == "__main__":
         raise ValueError(f"provided destination path {sys.argv[2]} does not exist")
 
     # Creation of the folders based on emotion label
-    labels = ["anger", "disgust", "fear", "happy", "sadness", "surprise"]
+    labels = ["anger", "disgust", "fear", "happiness", "sadness", "surprise"]
     folders = [os.path.join(sys.argv[2], label) for label in labels]
     for folder in [folder for folder in folders if not os.path.exists(folder)]:
         os.mkdir(folder)

@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
-import csv
 import os
 import cv2
+import logging
 import numpy as np
 from enum import Enum, auto
-
 
 
 class Dataset:
@@ -104,6 +102,7 @@ class Loader:
     def __init__(self):
         self._dataset = None
         self._path = None
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     @staticmethod
     def encode(labels: np.ndarray) -> np.ndarray:
@@ -171,7 +170,9 @@ class CKPLoader(Loader):
         data, labels = [], []
         for folder in os.listdir(self.path):
             folder_path = os.path.join(self.path, folder)
-            for filename in os.listdir(folder_path):
+            files = os.listdir(folder_path)
+            logging.debug(f" • Loading folder {folder} (files: {len(files)})")
+            for filename in files:
                 image = cv2.imread(
                     os.path.join(folder_path, filename),
                     cv2.IMREAD_GRAYSCALE
@@ -200,16 +201,52 @@ class MMILoader(Loader):
 
     def __init__(self):
         super().__init__()
+        self._dataset = None
+        self._path = os.path.join(os.path.dirname(__file__), "raw", "MMI")
 
     @staticmethod
     def encode(labels: np.ndarray) -> np.ndarray:
-        pass
+        if len(labels.shape) != 1:
+            raise ValueError("labels shape must be 1-dimensional")
+        encoded_labels = np.zeros(shape=(labels.shape[0], len(MMILoader.Labels)))
+        for n in range(labels.shape[0]):
+            if not 1 <= labels[n] <= len(MMILoader.Labels):
+                raise ValueError(
+                    f"labels value must be in [1, {len(MMILoader.Labels)})"
+                    f" - provided {labels[n]}"
+                )
+            encoded_labels[n][labels[n]-1] = 1
+        return encoded_labels
 
     @staticmethod
     def decode(labels: np.ndarray) -> np.ndarray:
-        pass
+        if len(labels.shape) != 2 or labels.shape[1] != len(MMILoader.Labels):
+            raise ValueError(
+                f"labels must have shape (?, {len(MMILoader.Labels)})"
+                f" - provided {labels.shape}"
+            )
+        return np.array([
+            np.argmax(labels[n, :]) + 1 for n in range(labels.shape[0])
+        ])
 
     def load(self, **kwargs: dict) -> None:
-        pass
-
-
+        data, labels = [], []
+        for folder in os.listdir(self.path):
+            folder_path = os.path.join(self.path, folder)
+            files = os.listdir(folder_path)
+            logging.debug(f" • Loading folder {folder} (files: {len(files)})")
+            for filename in files:
+                image = cv2.imread(
+                    os.path.join(folder_path, filename),
+                    cv2.IMREAD_GRAYSCALE
+                )
+                image = cv2.resize(image, kwargs.get("shape", (224, 224)))
+                image = image[np.newaxis, ...]
+                image = image.astype('float32')
+                image = image/255 if kwargs.get("normalize", True) else image
+                data.append(image)
+                labels.append(getattr(MMILoader.Labels, folder.upper()).value)
+        self._dataset = Dataset(
+            np.array(data),
+            self.encode(np.array(labels))
+        )
