@@ -62,9 +62,10 @@ class FaceDetector:
         self._min_size = min_size
         self._max_size = max_size
         self._flags = flags
-        self._face_cascade = cv2.CascadeClassifier(
-            os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml")
-        )
+        self._face_cascade = cv2.CascadeClassifier(os.path.join(
+            cv2.data.haarcascades,
+            "haarcascade_frontalface_default.xml"
+        ))
 
     def detect(self, frame: np.ndarray) -> list[BoundingBox]:
         grayscale = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -116,25 +117,54 @@ class DeXpression(nn.Module):
         super().__init__()
         if mtype.upper() not in DeXpression.MType.__members__:
             raise ValueError(
-                f"mtype must be one of {list(DeXpression.MType.__members__.keys())}"
+                f"mtype must be one of "
+                f"{list(DeXpression.MType.__members__.keys())}"
                 f" - provided {mtype}"
             )
         out_features = getattr(DeXpression.MType.CKP, mtype).value
         # PPB
-        self._conv_1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=7, stride=2, padding=3)
+        self._conv_1 = nn.Conv2d(
+            in_channels=1, out_channels=64,
+            kernel_size=7,
+            stride=2, padding=3
+        )
         self._pool_1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         self._lnrm_1 = nn.LayerNorm([64, 55, 55])
         # Feat-Ex-1
-        self._conv_2a = nn.Conv2d(in_channels=64, out_channels=96, kernel_size=1, stride=1, padding=0)
-        self._conv_2b = nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, stride=1, padding=1)
+        self._conv_2a = nn.Conv2d(
+            in_channels=64, out_channels=96,
+            kernel_size=1,
+            stride=1, padding=0
+        )
+        self._conv_2b = nn.Conv2d(
+            in_channels=96, out_channels=208,
+            kernel_size=3,
+            stride=1, padding=1
+        )
         self._pool_2a = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
-        self._conv_2c = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1, padding=0)
+        self._conv_2c = nn.Conv2d(
+            in_channels=64, out_channels=64,
+            kernel_size=1,
+            stride=1, padding=0
+        )
         self._pool_2b = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         # Feat-Ex-2
-        self._conv_3a = nn.Conv2d(in_channels=272, out_channels=96, kernel_size=1, stride=1, padding=0)
-        self._conv_3b = nn.Conv2d(in_channels=96, out_channels=208, kernel_size=3, stride=1, padding=1)
+        self._conv_3a = nn.Conv2d(
+            in_channels=272, out_channels=96,
+            kernel_size=1,
+            stride=1, padding=0
+        )
+        self._conv_3b = nn.Conv2d(
+            in_channels=96, out_channels=208,
+            kernel_size=3,
+            stride=1, padding=1
+        )
         self._pool_3a = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
-        self._conv_3c = nn.Conv2d(in_channels=272, out_channels=64, kernel_size=1, stride=1, padding=0)
+        self._conv_3c = nn.Conv2d(
+            in_channels=272, out_channels=64,
+            kernel_size=1,
+            stride=1, padding=0
+        )
         self._pool_3b = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         # Classifier
         self._lfc = nn.Linear(in_features=272*13**2, out_features=out_features)
