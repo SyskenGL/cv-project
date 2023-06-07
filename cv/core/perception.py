@@ -7,6 +7,9 @@ import torch.nn as nn
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass
+
+from torch.nn import LogSoftmax
+
 from cv.dataset.loader import CKPLoader, MMILoader
 
 
@@ -140,6 +143,7 @@ class DeXpression(nn.Module):
         self._lfc = nn.Linear(in_features=272*13**2, out_features=out_features)
         self._bnorm = nn.BatchNorm2d(272)
         self._dropout = nn.Dropout(p=0.2)
+        self._softmax = nn.LogSoftmax(dim=1)
 
     def forward(
         self,

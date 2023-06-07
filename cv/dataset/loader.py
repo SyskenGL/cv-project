@@ -5,6 +5,7 @@ import cv2
 import logging
 import numpy as np
 from enum import Enum, auto
+from sklearn.model_selection import KFold
 
 
 class Dataset:
@@ -42,8 +43,8 @@ class Dataset:
 
     def kfold(
         self,
-        splits: int = 2,
-        shuffle: bool = False
+        splits: int = 5,
+        shuffle: bool = True
     ) -> list[tuple[Dataset, Dataset]]:
         if not 1 < splits <= self.data.shape[0]:
             raise ValueError(
