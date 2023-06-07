@@ -5,7 +5,6 @@ import cv2
 import logging
 import numpy as np
 from enum import Enum, auto
-from sklearn.model_selection import KFold
 
 
 class Dataset:
