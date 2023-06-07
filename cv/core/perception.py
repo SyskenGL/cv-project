@@ -7,9 +7,6 @@ import torch.nn as nn
 import numpy as np
 from enum import Enum
 from dataclasses import dataclass
-
-from torch.nn import LogSoftmax
-
 from cv.dataset.loader import CKPLoader, MMILoader
 
 
