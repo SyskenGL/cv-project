@@ -2,6 +2,7 @@
 from __future__ import annotations
 import os
 import cv2
+import torch
 import logging
 import numpy as np
 from enum import Enum, auto
@@ -66,7 +67,7 @@ class Dataset:
             ) for k in range(splits)
         ]
 
-    def shuffle(self, size: int):
+    def shuffle(self, size: int) -> Dataset:
         if size > self.size:
             raise ValueError(
                 f"largest possible size {self.size}"
@@ -76,6 +77,11 @@ class Dataset:
         data = self.data[choices, :]
         labels = self.labels[choices, :]
         return Dataset(data, labels)
+
+    def torch(self):
+        data = torch.from_numpy(self._data).type(torch.FloatTensor)
+        labels = torch.from_numpy(self._labels).type(torch.FloatTensor)
+        return {"data": data, "labels": labels}
 
     @property
     def data(self) -> np.ndarray:
