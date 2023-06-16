@@ -1,6 +1,7 @@
 from __future__ import annotations
 import uuid
 import logging
+import math
 import torch
 import torch.nn as nn
 from enum import Enum
@@ -147,26 +148,40 @@ class DeXpression(nn.Module):
 
         loss = nn.NLLLoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-
         epoch_stats = []
-
         torch_training_set = training_set.torch()
+        n_batches = math.ceil(training_set.size / batch_size)
 
         for epoch in range(epochs):
 
             self.train()
 
+            running_training_accuracy = 0
+            running_training_loss = 0
+
             for i in range(0, training_set.size, batch_size):
+
                 optimizer.zero_grad()
                 predictions = self(torch_training_set["data"][i: i + batch_size].to(device))
-                _, actual_labels = torch.max(torch_training_set["labels"][i: i + batch_size].to(device), 1)
-                loss(predictions, actual_labels).backward()
+                _, predicted_labels = torch.max(predictions, 1)
+                _, actual_labels = torch.max(
+                    torch_training_set["labels"][i: i + batch_size].to(device), 1
+                )
+                correctness = predicted_labels.eq(actual_labels)
+                _loss = loss(predictions, actual_labels)
+                _loss.backward()
                 optimizer.step()
+                accuracy = torch.mean(correctness.type(torch.FloatTensor))
+                running_training_accuracy += accuracy.item()
+                running_training_loss += _loss.item()
 
             with torch.no_grad():
                 self.eval()
                 epoch_stats.append({
-                    "training": self.validate(training_set),
+                    "training": {
+                        "loss": running_training_loss / n_batches,
+                        "accuracy": running_training_accuracy / n_batches
+                    },
                     "validation": self.validate(validation_set) if validation_set else None
                 })
 
@@ -187,6 +202,7 @@ class DeXpression(nn.Module):
             self._logger.info(log)
 
         return epoch_stats
+
 
 
 
