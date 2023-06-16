@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
         path = os.path.join(sys.argv[1], session)
         sid = os.path.basename(glob.glob(os.path.join(path, "*.avi"))[0]).split(".")[0]
-        print(f"• Processing video {sid}")
+        print(f"\u2022 Processing video {sid}")
 
         # Get video type
         session_meta = BeautifulSoup(open(os.path.join(path, "session.xml")), "xml")
@@ -113,6 +113,6 @@ if __name__ == "__main__":
         )
 
     print(
-        f"• Extraction finished with a total of {sum(total_images)} images:\n" +
+        f"\u2022 Extraction finished with a total of {sum(total_images)} images:\n" +
         "".join(f"\t{labels[i]}: {total_images[i]}\n" for i in range(len(labels)))
     )

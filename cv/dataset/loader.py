@@ -138,14 +138,14 @@ class CKPLoader(Loader):
         DISGUST = auto()
         FEAR = auto()
         HAPPINESS = auto()
-        NEUTRAL = auto()
         SADNESS = auto()
         SURPRISE = auto()
 
-    def __init__(self):
+    def __init__(self, version48: bool = False):
         super().__init__()
         self._dataset = None
-        self._path = os.path.join(os.path.dirname(__file__), "raw", "CK+")
+        version = "CK+48" if version48 else "CK+"
+        self._path = os.path.join(os.path.dirname(__file__), "raw", version)
 
     @staticmethod
     def encode(labels: np.ndarray) -> np.ndarray:
@@ -177,11 +177,14 @@ class CKPLoader(Loader):
         for folder in os.listdir(self.path):
             folder_path = os.path.join(self.path, folder)
             files = os.listdir(folder_path)
-            logging.debug(f" • Loading folder {folder} (files: {len(files)})")
+            logging.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
             for filename in files:
-                image = cv2.imread(
-                    os.path.join(folder_path, filename),
-                    cv2.IMREAD_GRAYSCALE
+                image = (
+                    cv2.imread(
+                        os.path.join(folder_path, filename),
+                        cv2.IMREAD_GRAYSCALE
+                    ) if kwargs.get("grayscale", True) else
+                    cv2.imread(os.path.join(folder_path, filename))
                 )
                 image = cv2.resize(image, kwargs.get("shape", (224, 224)))
                 image = image[np.newaxis, ...]
@@ -240,11 +243,14 @@ class MMILoader(Loader):
         for folder in os.listdir(self.path):
             folder_path = os.path.join(self.path, folder)
             files = os.listdir(folder_path)
-            logging.debug(f" • Loading folder {folder} (files: {len(files)})")
+            logging.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
             for filename in files:
-                image = cv2.imread(
-                    os.path.join(folder_path, filename),
-                    cv2.IMREAD_GRAYSCALE
+                image = (
+                    cv2.imread(
+                        os.path.join(folder_path, filename),
+                        cv2.IMREAD_GRAYSCALE
+                    ) if kwargs.get("grayscale", True) else
+                    cv2.imread(os.path.join(folder_path, filename))
                 )
                 image = cv2.resize(image, kwargs.get("shape", (224, 224)))
                 image = image[np.newaxis, ...]

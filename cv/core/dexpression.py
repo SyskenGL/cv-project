@@ -1,15 +1,16 @@
 from __future__ import annotations
-import uuid
 import logging
 import math
 import torch
 import torch.nn as nn
+from uuid import uuid1
 from enum import Enum
 from typing import Optional
 from cv.dataset.loader import Dataset
 from cv.dataset.loader import CKPLoader, MMILoader
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class DeXpression(nn.Module):
@@ -76,8 +77,9 @@ class DeXpression(nn.Module):
         self._bnorm = nn.BatchNorm2d(272)
         self._dropout = nn.Dropout(p=0.2)
         self._softmax = nn.LogSoftmax(dim=1)
+        self._loss = nn.NLLLoss()
         self._logger = logging.getLogger(
-            f"{self.__class__.__name__}{uuid.uuid4()}"
+            f"{self.__class__.__name__}{str(uuid1())[:18]}"
         )
 
     def forward(
@@ -85,7 +87,7 @@ class DeXpression(nn.Module):
         in_data: torch.Tensor,
         dropout: bool = True,
         batch_normalization: bool = True
-    ):
+    ) -> torch.Tensor:
         # PPB
         conv_1_out = nn.functional.relu(self._conv_1(in_data))
         pool_1_out = self._pool_1(conv_1_out)
@@ -115,16 +117,18 @@ class DeXpression(nn.Module):
     def validate(self, dataset: Dataset) -> dict:
         if dataset.size == 0:
             raise ValueError("provided an empty validation set.")
-        torch_dataset = dataset.torch()
-        predictions = self(torch_dataset["data"])
-        _, predicted_labels = torch.max(predictions, 1)
-        _, actual_labels = torch.max(torch_dataset["labels"], 1)
-        correctness = predicted_labels.eq(actual_labels)
-        return {
-            "accuracy": torch.mean(correctness.type(torch.FloatTensor)).item(),
-            "loss": nn.NLLLoss()(predictions, actual_labels).item(),
-            "hits": int(torch.count_nonzero(correctness))
-        }
+        self.eval()
+        with torch.no_grad():
+            torch_dataset = dataset.torch()
+            predictions = self(torch_dataset["data"])
+            _, predicted_labels = torch.max(predictions, 1)
+            _, actual_labels = torch.max(torch_dataset["labels"], 1)
+            correctness = predicted_labels.eq(actual_labels)
+            return {
+                "hits": int(torch.count_nonzero(correctness)),
+                "loss": self._loss(predictions, actual_labels).item(),
+                "accuracy": torch.mean(correctness.type(torch.FloatTensor)).item()
+            }
 
     def fit(
         self,
@@ -133,7 +137,7 @@ class DeXpression(nn.Module):
         batch_size: int = 32,
         epochs: int = 25,
         learning_rate: float = 0.001
-    ):
+    ) -> list:
 
         if training_set.size == 0:
             raise ValueError("provided an empty training set.")
@@ -146,7 +150,6 @@ class DeXpression(nn.Module):
         if not 0 < learning_rate <= 1:
             raise ValueError("learning_rate must be in (0, 1].")
 
-        loss = nn.NLLLoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         epoch_stats = []
         torch_training_set = training_set.torch()
@@ -158,46 +161,49 @@ class DeXpression(nn.Module):
 
             running_training_accuracy = 0
             running_training_loss = 0
+            running_training_hits = 0
 
             for i in range(0, training_set.size, batch_size):
 
                 optimizer.zero_grad()
-                predictions = self(torch_training_set["data"][i: i + batch_size].to(device))
+                data = torch_training_set["data"][i: i + batch_size].to(DEVICE)
+                labels = torch_training_set["labels"][i: i + batch_size].to(DEVICE)
+                predictions = self(data)
                 _, predicted_labels = torch.max(predictions, 1)
-                _, actual_labels = torch.max(
-                    torch_training_set["labels"][i: i + batch_size].to(device), 1
-                )
+                _, actual_labels = torch.max(labels, 1)
                 correctness = predicted_labels.eq(actual_labels)
-                _loss = loss(predictions, actual_labels)
-                _loss.backward()
+                loss = self._loss(predictions, actual_labels)
+                loss.backward()
                 optimizer.step()
                 accuracy = torch.mean(correctness.type(torch.FloatTensor))
+                running_training_hits += int(torch.count_nonzero(correctness))
                 running_training_accuracy += accuracy.item()
-                running_training_loss += _loss.item()
+                running_training_loss += loss.item()
 
-            with torch.no_grad():
-                self.eval()
-                epoch_stats.append({
-                    "training": {
-                        "loss": running_training_loss / n_batches,
-                        "accuracy": running_training_accuracy / n_batches
-                    },
-                    "validation": self.validate(validation_set) if validation_set else None
-                })
+            epoch_stats.append({
+                "training": {
+                    "hits": running_training_hits,
+                    "loss": running_training_loss / n_batches,
+                    "accuracy": running_training_accuracy / n_batches
+                },
+                "validation": self.validate(validation_set) if validation_set else None
+            })
 
             learning_method = (
                 "on-line" if batch_size == 1 else
                 ("full-batch" if batch_size == training_set.size else "mini-batch")
             )
-            log = f"\033[1m Epoch \033[0m{epoch + 1} of {epochs} - [{learning_method}]\n"
+            log = f"\033[1m \u25fc Epoch \033[0m{epoch + 1} of {epochs} - [{learning_method}]\n"
+            log += f"\n\033[1m   \u2022 Training size:\033[0m {training_set.size}"
             for key in epoch_stats[-1]["training"].keys():
                 value = epoch_stats[-1]["training"][key]
-                log += f"\n\033[1m   • Training {key}:\033[0m {round(value, 3)}"
+                log += f"\n\033[1m   \u2022 Training {key}:\033[0m {round(value, 3)}"
             log += "\n"
             if validation_set:
+                log += f"\n\033[1m   \u2022 Validation size:\033[0m {validation_set.size}"
                 for key in epoch_stats[-1]["validation"].keys():
                     value = epoch_stats[-1]["validation"][key]
-                    log += f"\n\033[1m   • Validation {key}:\033[0m {round(value, 3)}"
+                    log += f"\n\033[1m   \u2022 Validation {key}:\033[0m {round(value, 3)}"
                 log += "\n"
             self._logger.info(log)
 
@@ -205,14 +211,13 @@ class DeXpression(nn.Module):
 
 
 
-
 logging.basicConfig(format='\n%(message)s\n', level=logging.DEBUG)
 
 loader = CKPLoader()
 loader.load()
+
 model = DeXpression()
-train, test = loader.dataset.slice(0.25, True)
 
-print(model.validate(loader.dataset.slice(10, True)[1]))
 
-print(model.fit(*loader.dataset.slice(0.25, True)))
+
+print(model.fit(*loader.dataset.slice(0.2, True)))
