@@ -1,9 +1,9 @@
 from __future__ import annotations
+import copy
 import logging
 import math
 import torch
 import torch.nn as nn
-from uuid import uuid1
 from enum import Enum
 from typing import Optional
 from cv.dataset.loader import Dataset
@@ -78,9 +78,7 @@ class DeXpression(nn.Module):
         self._dropout = nn.Dropout(p=0.2)
         self._softmax = nn.LogSoftmax(dim=1)
         self._loss = nn.NLLLoss()
-        self._logger = logging.getLogger(
-            f"{self.__class__.__name__}{str(uuid1())[:18]}"
-        )
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     def forward(
         self,
@@ -114,7 +112,7 @@ class DeXpression(nn.Module):
         logits = self._softmax(output)
         return logits
 
-    def validate(self, dataset: Dataset) -> dict:
+    def validate(self, dataset: Dataset, output: bool = False) -> dict:
         if dataset.size == 0:
             raise ValueError("provided an empty validation set.")
         self.eval()
@@ -124,18 +122,49 @@ class DeXpression(nn.Module):
             _, predicted_labels = torch.max(predictions, 1)
             _, actual_labels = torch.max(torch_dataset["labels"], 1)
             correctness = predicted_labels.eq(actual_labels)
-            return {
+            result = {
                 "hits": int(torch.count_nonzero(correctness)),
                 "loss": self._loss(predictions, actual_labels).item(),
                 "accuracy": torch.mean(correctness.type(torch.FloatTensor)).item()
             }
+            if output:
+                result["predicted_labels"] = predicted_labels
+                result["actual_labels"] = actual_labels
+            return result
+
+    def cross_validate(
+        self,
+        dataset: Dataset,
+        splits: int = 10,
+        epochs: int = 25,
+        batch_size: int = 32,
+        learning_rate: float = 0.001,
+        output: bool = False
+    ) -> list[dict]:
+        stats = []
+        folds = dataset.kfold(splits)
+        for k, (training_set, validation_set) in enumerate(folds):
+            model = copy.deepcopy(self)
+            self._logger.info(
+                f"\033[1m \u25b6 Cross validation: "
+                f"\033[0mfold {k + 1} of {splits}\033[0m"
+            )
+            model.fit(
+                training_set,
+                validation_set,
+                epochs=epochs,
+                batch_size=batch_size,
+                learning_rate=learning_rate
+            )
+            stats.append(model.validate(validation_set, output))
+        return stats
 
     def fit(
         self,
         training_set: Dataset,
         validation_set: Optional[Dataset] = None,
-        batch_size: int = 32,
         epochs: int = 25,
+        batch_size: int = 32,
         learning_rate: float = 0.001
     ) -> list:
 
@@ -193,7 +222,7 @@ class DeXpression(nn.Module):
                 "on-line" if batch_size == 1 else
                 ("full-batch" if batch_size == training_set.size else "mini-batch")
             )
-            log = f"\033[1m \u25fc Epoch \033[0m{epoch + 1} of {epochs} - [{learning_method}]\n"
+            log = f"\033[1m \u25fc Epoch: \033[0m{epoch + 1} of {epochs} - [{learning_method}]\n"
             log += f"\n\033[1m   \u2022 Training size:\033[0m {training_set.size}"
             for key in epoch_stats[-1]["training"].keys():
                 value = epoch_stats[-1]["training"][key]
@@ -208,16 +237,3 @@ class DeXpression(nn.Module):
             self._logger.info(log)
 
         return epoch_stats
-
-
-
-logging.basicConfig(format='\n%(message)s\n', level=logging.DEBUG)
-
-loader = CKPLoader()
-loader.load()
-
-model = DeXpression()
-
-
-
-print(model.fit(*loader.dataset.slice(0.2, True)))
