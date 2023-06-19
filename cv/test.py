@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     # Model Cross-Validation
     model = DeXpression()
-    stats = model.cross_validate(loader.dataset, epochs=1, splits=2, output=True)
+    stats = model.cross_validate(loader.dataset, output=True)
     cm_list = []
 
     # Construction of confusion matrix
@@ -60,7 +60,8 @@ if __name__ == "__main__":
         os.path.join(
             save_path,
             "train",
-            f"cm_{['mmi', 'ck+', 'ck+48'][int(choice)]}_{str(uuid1())[:18]}.png"
+            f"cm_{['mmi', 'ck+', 'ck+48'][int(choice)]}"
+            f"_{time.strftime('%Y%m%d-%H%M%S')}.png"
         ),
         bbox_inches="tight",
         dpi=600
