@@ -60,7 +60,7 @@ if __name__ == "__main__":
         os.path.join(
             save_path,
             "train",
-            f"cm_{['mmi', 'ck+', 'ck+48'][choice]}_{str(uuid1())[:18]}.png"
+            f"cm_{['mmi', 'ck+', 'ck+48'][int(choice)]}_{str(uuid1())[:18]}.png"
         ),
         bbox_inches="tight",
         dpi=600
