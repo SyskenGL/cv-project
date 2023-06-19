@@ -1,5 +1,7 @@
 import logging
 import os
+import sys
+import time
 import numpy as np
 import pandas as pd
 import seaborn as sb
@@ -12,8 +14,18 @@ from sklearn.metrics import confusion_matrix as cm
 
 if __name__ == "__main__":
 
-    save_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/results")
-    logging.basicConfig(format='\n%(message)s\n', level=logging.DEBUG)
+    save_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+    logging.basicConfig(
+        format="\n%(asctime)s [%(levelname)-5.5s] \n%(message)s\n",
+        level=logging.DEBUG,
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler(
+                os.path.join(save_path, "logs", f"{time.strftime('%Y%m%d-%H%M%S')}.log"),
+                encoding="utf-8"
+            )
+        ]
+    )
 
     # Loading Dataset
     choice = None
@@ -25,7 +37,7 @@ if __name__ == "__main__":
 
     # Model Cross-Validation
     model = DeXpression()
-    stats = model.cross_validate(loader.dataset, output=True)
+    stats = model.cross_validate(loader.dataset, epochs=1, splits=2, output=True)
     cm_list = []
 
     # Construction of confusion matrix
@@ -43,10 +55,14 @@ if __name__ == "__main__":
     # Saving Confusion Matrix
     ax = sb.heatmap(averaged_cm, annot=True, cmap="YlGnBu")
     ax.set(ylabel="Actual", xlabel="Predicted")
-    plt.title("K-Fold CM")
+    plt.title("K-Fold Confusion Matrix")
     plt.savefig(
-        os.path.join(save_path, f"cm_{str(uuid1())[:18]}.png"),
+        os.path.join(
+            save_path,
+            "train",
+            f"cm_{['mmi', 'ck+', 'ck+48'][choice]}_{str(uuid1())[:18]}.png"
+        ),
         bbox_inches="tight",
-        dpi=300
+        dpi=600
     )
     plt.close()

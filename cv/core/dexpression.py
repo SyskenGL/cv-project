@@ -127,6 +127,12 @@ class DeXpression(nn.Module):
                 "loss": self._loss(predictions, actual_labels).item(),
                 "accuracy": torch.mean(correctness.type(torch.FloatTensor)).item()
             }
+            log = f"\033[1m \u25b6 Validation result: \033[0m\n"
+            log += f"\n\033[1m   \u2022 Validation size:\033[0m {dataset.size}"
+            for key in result.keys():
+                value = result[key]
+                log += f"\n\033[1m   \u2022 Validation {key}:\033[0m {round(value, 3)}"
+            self._logger.info(log)
             if output:
                 result["predicted_labels"] = predicted_labels
                 result["actual_labels"] = actual_labels
@@ -231,13 +237,11 @@ class DeXpression(nn.Module):
             for key in epoch_stats[-1]["training"].keys():
                 value = epoch_stats[-1]["training"][key]
                 log += f"\n\033[1m   \u2022 Training {key}:\033[0m {round(value, 3)}"
-            log += "\n"
             if validation_set:
-                log += f"\n\033[1m   \u2022 Validation size:\033[0m {validation_set.size}"
+                log += f"\n\n\033[1m   \u2022 Validation size:\033[0m {validation_set.size}"
                 for key in epoch_stats[-1]["validation"].keys():
                     value = epoch_stats[-1]["validation"][key]
                     log += f"\n\033[1m   \u2022 Validation {key}:\033[0m {round(value, 3)}"
-                log += "\n"
             self._logger.info(log)
 
         return epoch_stats
