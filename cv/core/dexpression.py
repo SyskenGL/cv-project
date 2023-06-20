@@ -2,6 +2,8 @@ from __future__ import annotations
 import copy
 import logging
 import math
+
+import numpy as np
 import torch
 import torch.nn as nn
 from enum import Enum
