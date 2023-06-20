@@ -5,7 +5,6 @@ import time
 import numpy as np
 import pandas as pd
 import seaborn as sb
-from uuid import uuid1
 import matplotlib.pyplot as plt
 from cv.core.dexpression import DeXpression
 from cv.dataset.loader import CKPLoader, MMILoader
@@ -36,16 +35,18 @@ if __name__ == "__main__":
     loader.load()
 
     # Model Cross-Validation
-    model = DeXpression()
-    stats = model.cross_validate(loader.dataset, output=True)
+    stats = DeXpression.cross_validate(
+        loader.dataset,
+        learning_rate=0.001,
+        output=True
+    )
     cm_list = []
 
     # Construction of confusion matrix
-    for fold_stats in stats:
-        validation_stats = fold_stats["validation"]
+    for stat in stats:
         matrix = cm(
-            validation_stats["actual_labels"],
-            validation_stats["predicted_labels"]
+            stat["actual_labels"],
+            stat["predicted_labels"]
         )
         matrix = (matrix.T / matrix.astype(np.float32).sum(axis=1)).T
         labels = [label.name.lower() for label in loader.Labels]

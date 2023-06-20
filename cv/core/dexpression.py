@@ -127,19 +127,13 @@ class DeXpression(nn.Module):
                 "loss": self._loss(predictions, actual_labels).item(),
                 "accuracy": torch.mean(correctness.type(torch.FloatTensor)).item()
             }
-            log = f"\033[1m \u25b6 Validation result: \033[0m\n"
-            log += f"\n\033[1m   \u2022 Validation size:\033[0m {dataset.size}"
-            for key in result.keys():
-                value = result[key]
-                log += f"\n\033[1m   \u2022 Validation {key}:\033[0m {round(value, 3)}"
-            self._logger.info(log)
             if output:
                 result["predicted_labels"] = predicted_labels
                 result["actual_labels"] = actual_labels
             return result
 
+    @staticmethod
     def cross_validate(
-        self,
         dataset: Dataset,
         splits: int = 10,
         epochs: int = 25,
@@ -150,8 +144,8 @@ class DeXpression(nn.Module):
         stats = []
         folds = dataset.kfold(splits)
         for k, (training_set, validation_set) in enumerate(folds):
-            model = copy.deepcopy(self)
-            self._logger.info(
+            model = DeXpression()
+            model._logger.info(
                 f"\033[1m \u25b6 Cross validation: "
                 f"\033[0mfold {k + 1} of {splits}\033[0m"
             )
@@ -162,11 +156,8 @@ class DeXpression(nn.Module):
                 batch_size=batch_size,
                 learning_rate=learning_rate
             )
-            validation_stats = model.validate(validation_set, output)
-            stats.append({
-                "fit": fit_stats,
-                "validation": validation_stats
-            })
+            validation_stats =
+            stats.append(model.validate(validation_set, output))
         return stats
 
     def fit(
