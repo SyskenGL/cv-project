@@ -149,14 +149,13 @@ class DeXpression(nn.Module):
                 f"\033[1m \u25b6 Cross validation: "
                 f"\033[0mfold {k + 1} of {splits}\033[0m"
             )
-            fit_stats = model.fit(
+            model.fit(
                 training_set,
                 validation_set,
                 epochs=epochs,
                 batch_size=batch_size,
                 learning_rate=learning_rate
             )
-            validation_stats =
             stats.append(model.validate(validation_set, output))
         return stats
 
