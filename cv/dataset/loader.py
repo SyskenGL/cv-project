@@ -177,7 +177,7 @@ class CKPLoader(Loader):
         for folder in os.listdir(self.path):
             folder_path = os.path.join(self.path, folder)
             files = os.listdir(folder_path)
-            logging.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
+            self._logger.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
             for filename in files:
                 image = (
                     cv2.imread(
@@ -243,7 +243,7 @@ class MMILoader(Loader):
         for folder in os.listdir(self.path):
             folder_path = os.path.join(self.path, folder)
             files = os.listdir(folder_path)
-            logging.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
+            self._logger.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
             for filename in files:
                 image = (
                     cv2.imread(

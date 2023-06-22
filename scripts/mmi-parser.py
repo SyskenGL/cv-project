@@ -102,6 +102,18 @@ if __name__ == "__main__":
                     iframes[i][100:height, 10:int(width/2)]
                 )
 
+        # Cropping iframes
+        temp_iframes = iframes
+        iframes = []
+        for i in range(len(temp_iframes)):
+            faces = face_detector.detect(temp_iframes[i])
+            assert len(faces) > 0
+            temp_iframes[i] = temp_iframes[i][
+                faces[0].tl[1]:faces[0].br[1],
+                faces[0].tl[0]:faces[0].br[0]
+            ]
+            iframes.append(temp_iframes[i])
+
         # Saving images
         total_images[emotion] += len(iframes)
         save_path = os.path.join(sys.argv[2], labels[emotion])
