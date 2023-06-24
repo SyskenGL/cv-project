@@ -73,9 +73,9 @@ class Dataset:
                 f"largest possible size {self.size}"
                 f" - provided {size}"
             )
-        choices = np.random.choice(np.random.permutation(size))
-        data = self.data[choices, :]
-        labels = self.labels[choices, :]
+        choices = np.random.permutation(size)
+        data = self.data[choices]
+        labels = self.labels[choices]
         return Dataset(data, labels)
 
     def torch(self):

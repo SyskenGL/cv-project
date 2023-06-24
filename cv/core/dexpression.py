@@ -17,6 +17,7 @@ class DeXpression(nn.Module):
 
     class MType(Enum):
         CKP = CKPLoader
+        CKP48 = CKPLoader
         MMI = MMILoader
 
     def __init__(self, mtype: str = "CKP"):
@@ -194,12 +195,16 @@ class DeXpression(nn.Module):
         if not 0 < learning_rate <= 1:
             raise ValueError("learning_rate must be in (0, 1].")
 
+        learning_method = (
+            "on-line" if batch_size == 1 else
+            ("full-batch" if batch_size == training_set.size else "mini-batch")
+        )
         log = f"\033[1m \u25fc Model training\033[0m\n"
         log += f"\n\033[1m   \u2022 Training size:\033[0m {training_set.size}"
         log += f"\n\033[1m   \u2022 Validation " \
                f"size:\033[0m {validation_set.size if validation_set else 0}\n"
         log += f"\n\033[1m   \u2022 Epochs:\033[0m {epochs}"
-        log += f"\n\033[1m   \u2022 Batch size:\033[0m {batch_size}"
+        log += f"\n\033[1m   \u2022 Batch size:\033[0m {batch_size} - [{learning_method}]"
         log += f"\n\033[1m   \u2022 Learning rate:\033[0m {learning_rate}"
         self._logger.info(log)
 
@@ -240,10 +245,6 @@ class DeXpression(nn.Module):
                 "validation": self.validate(validation_set) if validation_set else None
             })
 
-            learning_method = (
-                "on-line" if batch_size == 1 else
-                ("full-batch" if batch_size == training_set.size else "mini-batch")
-            )
             log = f"\033[1m \u25fc Epoch: \033[0m{epoch + 1} of {epochs} - [{learning_method}]\n"
             log += f"\n\033[1m   \u2022 Training size:\033[0m {training_set.size}"
             for key in epoch_stats[-1]["training"].keys():
