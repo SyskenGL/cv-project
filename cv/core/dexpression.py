@@ -3,6 +3,7 @@ import logging
 import math
 import torch
 import torch.nn as nn
+import numpy as np
 from enum import Enum
 from typing import Optional
 from cv.dataset.loader import Dataset
@@ -15,8 +16,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class DeXpression(nn.Module):
 
     class MType(Enum):
-        CKP = len(CKPLoader.Labels)
-        MMI = len(MMILoader.Labels)
+        CKP = CKPLoader
+        MMI = MMILoader
 
     def __init__(self, mtype: str = "CKP"):
         super().__init__()
@@ -26,7 +27,7 @@ class DeXpression(nn.Module):
                 f"{list(DeXpression.MType.__members__.keys())}"
                 f" - provided {mtype}"
             )
-        out_features = getattr(DeXpression.MType.CKP, mtype).value
+        self._loader = getattr(DeXpression.MType.CKP, mtype).value
         # PPB
         self._conv_1 = nn.Conv2d(
             in_channels=1, out_channels=64,
@@ -72,7 +73,10 @@ class DeXpression(nn.Module):
         )
         self._pool_3b = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
         # Classifier
-        self._lfc = nn.Linear(in_features=272 * 13 ** 2, out_features=out_features)
+        self._lfc = nn.Linear(
+            in_features=272*13**2,
+            out_features=len(self._loader.Labels)
+        )
         self._bnorm = nn.BatchNorm2d(272)
         self._dropout = nn.Dropout(p=0.2)
         self._softmax = nn.LogSoftmax(dim=1)
@@ -111,6 +115,18 @@ class DeXpression(nn.Module):
         logits = self._softmax(output)
         return logits
 
+    def predict(self, in_data: torch.Tensor) -> list:
+        self.eval()
+        predictions = self(in_data)
+        _, predicted_labels = torch.max(predictions, 1)
+        np_predicted_labels = np.zeros((
+            predicted_labels.size(dim=0),
+            len(self._loader.Labels)
+        ))
+        for i in range(predicted_labels.size(dim=0)):
+            np_predicted_labels[i][predicted_labels[i]-1] = 1.0
+        return self._loader.decode(np_predicted_labels)
+
     def validate(self, dataset: Dataset, output: bool = False) -> dict:
         if dataset.size == 0:
             raise ValueError("provided an empty validation set.")
@@ -145,7 +161,7 @@ class DeXpression(nn.Module):
         for k, (training_set, validation_set) in enumerate(folds):
             model = DeXpression()
             model._logger.info(
-                f"\033[1m \u25b6 Cross validation: "
+                f"\033[1m \u25fc Cross validation: "
                 f"\033[0mfold {k + 1} of {splits}\033[0m"
             )
             model.fit(
@@ -178,6 +194,15 @@ class DeXpression(nn.Module):
         if not 0 < learning_rate <= 1:
             raise ValueError("learning_rate must be in (0, 1].")
 
+        log = f"\033[1m \u25fc Model training\033[0m\n"
+        log += f"\n\033[1m   \u2022 Training size:\033[0m {training_set.size}"
+        log += f"\n\033[1m   \u2022 Validation " \
+               f"size:\033[0m {validation_set.size if validation_set else 0}\n"
+        log += f"\n\033[1m   \u2022 Epochs:\033[0m {epochs}"
+        log += f"\n\033[1m   \u2022 Batch size:\033[0m {batch_size}"
+        log += f"\n\033[1m   \u2022 Learning rate:\033[0m {learning_rate}"
+        self._logger.info(log)
+
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         epoch_stats = []
         torch_training_set = training_set.torch()
@@ -186,13 +211,11 @@ class DeXpression(nn.Module):
         for epoch in range(epochs):
 
             self.train()
-
             running_training_accuracy = 0
             running_training_loss = 0
             running_training_hits = 0
 
             for i in range(0, training_set.size, batch_size):
-
                 optimizer.zero_grad()
                 data = torch_training_set["data"][i: i + batch_size].to(DEVICE)
                 labels = torch_training_set["labels"][i: i + batch_size].to(DEVICE)

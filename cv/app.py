@@ -34,6 +34,12 @@ if __name__ == "__main__":
     loader = loaders[int(choice)]
     loader.load()
 
+    # Training for plotting
+    model = DeXpression()
+    training_set, validation_test = loader.dataset.slice(portion=0.25)
+    stats = model.fit(training_set, validation_test, epochs=1)
+    print(stats)
+
     # Model Cross-Validation
     stats = DeXpression.cross_validate(
         loader.dataset,

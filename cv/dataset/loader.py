@@ -22,7 +22,7 @@ class Dataset:
     def slice(
         self,
         portion: float = 0.25,
-        shuffle: bool = False
+        shuffle: bool = True
     ) -> tuple[Dataset, Dataset]:
         if not 0 < portion <= self.size:
             raise ValueError(
@@ -67,7 +67,7 @@ class Dataset:
             ) for k in range(splits)
         ]
 
-    def shuffle(self, size: int) -> Dataset:
+    def random(self, size: int) -> Dataset:
         if size > self.size:
             raise ValueError(
                 f"largest possible size {self.size}"
@@ -162,15 +162,16 @@ class CKPLoader(Loader):
         return encoded_labels
 
     @staticmethod
-    def decode(labels: np.ndarray) -> np.ndarray:
+    def decode(labels: np.ndarray) -> list:
         if len(labels.shape) != 2 or labels.shape[1] != len(CKPLoader.Labels):
             raise ValueError(
                 f"labels must have shape (?, {len(CKPLoader.Labels)})"
                 f" - provided {labels.shape}"
             )
-        return np.array([
+        labels = np.array([
             np.argmax(labels[n, :]) + 1 for n in range(labels.shape[0])
         ])
+        return [CKPLoader.Labels(label).name.lower() for label in labels]
 
     def load(self, **kwargs: dict) -> None:
         data, labels = [], []
@@ -228,15 +229,16 @@ class MMILoader(Loader):
         return encoded_labels
 
     @staticmethod
-    def decode(labels: np.ndarray) -> np.ndarray:
+    def decode(labels: np.ndarray) -> list:
         if len(labels.shape) != 2 or labels.shape[1] != len(MMILoader.Labels):
             raise ValueError(
                 f"labels must have shape (?, {len(MMILoader.Labels)})"
                 f" - provided {labels.shape}"
             )
-        return np.array([
+        labels = np.array([
             np.argmax(labels[n, :]) + 1 for n in range(labels.shape[0])
         ])
+        return [MMILoader.Labels(label).name.lower() for label in labels]
 
     def load(self, **kwargs: dict) -> None:
         data, labels = [], []
