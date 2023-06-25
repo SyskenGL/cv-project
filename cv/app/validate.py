@@ -35,17 +35,20 @@ if __name__ == "__main__":
     loader.load()
 
     # Model K-fold Cross-Validation
-    stats = DeXpression.cross_validate(
+    fold_stats = DeXpression.cross_validate(
         loader.dataset,
-        output=True
+        output=True,
+        epochs=2,
+        mtype=["MMI", "CKP", "CKP48"][int(choice)]
     )
     cm_list = []
 
     # Construction of K-fold Confusion Matrix
-    for stat in stats:
+    for fold_stat in fold_stats:
+        fold_stat = fold_stat["validation"]
         matrix = cm(
-            stat["actual_labels"],
-            stat["predicted_labels"]
+            fold_stat["actual_labels"],
+            fold_stat["predicted_labels"]
         )
         matrix = (matrix.T / matrix.astype(np.float32).sum(axis=1)).T
         labels = [label.name.lower() for label in loader.Labels]
@@ -67,3 +70,47 @@ if __name__ == "__main__":
         dpi=600
     )
     plt.close()
+
+    # Gather plot data
+    folds_plot_data = [{
+        "training": {
+            "loss": [],
+            "accuracy": []
+        },
+        "validation": {
+            "loss": [],
+            "accuracy": []
+        }
+    } for i in range(len(fold_stats))]
+
+    for i in range(len(fold_stats)):
+        for dataset in ["training", "validation"]:
+            for metric in ["loss", "accuracy"]:
+                folds_plot_data[i][dataset][metric] = [
+                    fold_stats[i]["fit"][epoch][dataset][metric]
+                    for epoch in range(len(fold_stats[i]["fit"]))
+                ]
+
+    # Plotting
+    for dataset in ["training", "validation"]:
+        for metric in ["loss", "accuracy"]:
+            figure, axis = plt.subplots()
+            axis.set_xlabel("Epochs", labelpad=10)
+            axis.set_ylabel(metric.capitalize(), labelpad=10)
+            for i in range(len(folds_plot_data)):
+                axis.plot(
+                    range(1, len(folds_plot_data[i][dataset][metric])+1),
+                    folds_plot_data[i][dataset][metric],
+                    label=f"{i}-fold"
+                )
+            axis.legend(loc=("lower right" if metric == "accuracy" else "upper right"))
+            figure.savefig(
+                os.path.join(
+                    save_path,
+                    "plots",
+                    f"plt_{['mmi', 'ck+', 'ck+48'][int(choice)]}_"
+                    f"{dataset}_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
+                ),
+                bbox_inches="tight",
+                dpi=600
+            )

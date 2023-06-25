@@ -155,24 +155,27 @@ class DeXpression(nn.Module):
         epochs: int = 25,
         batch_size: int = 32,
         learning_rate: float = 0.001,
-        output: bool = False
+        output: bool = False,
+        mtype: str = "CKP"
     ) -> list[dict]:
         stats = []
         folds = dataset.kfold(splits)
         for k, (training_set, validation_set) in enumerate(folds):
-            model = DeXpression()
+            model = DeXpression(mtype)
             model._logger.info(
                 f"\033[1m \u25fc Cross validation: "
                 f"\033[0mfold {k + 1} of {splits}\033[0m"
             )
-            model.fit(
-                training_set,
-                validation_set,
-                epochs=epochs,
-                batch_size=batch_size,
-                learning_rate=learning_rate
-            )
-            stats.append(model.validate(validation_set, output))
+            stats.append({
+                "fit": model.fit(
+                    training_set,
+                    validation_set,
+                    epochs=epochs,
+                    batch_size=batch_size,
+                    learning_rate=learning_rate
+                ),
+                "validation": model.validate(validation_set, output)
+            })
         return stats
 
     def fit(

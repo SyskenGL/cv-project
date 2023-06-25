@@ -34,7 +34,7 @@ if __name__ == "__main__":
     # Model Training
     model = DeXpression()
     training_set, validation_test = loader.dataset.slice(portion=0.25)
-    stats = model.fit(training_set, validation_test)
+    stats = model.fit(training_set, validation_test, epochs=1)
 
     # Saving trained model
     torch.save(
@@ -68,8 +68,16 @@ if __name__ == "__main__":
         figure, axis = plt.subplots()
         axis.set_xlabel("Epochs", labelpad=10)
         axis.set_ylabel(metric.capitalize(), labelpad=10)
-        axis.plot(range(1, 26), plot_data["training"][metric], label="Training")
-        axis.plot(range(1, 26), plot_data["validation"][metric], label="Validation")
+        axis.plot(
+            range(1, len(plot_data["training"][metric])+1),
+            plot_data["training"][metric],
+            label="Training"
+        )
+        axis.plot(
+            range(1, len(plot_data["validation"][metric])+1),
+            plot_data["validation"][metric],
+            label="Validation"
+        )
         x_min, x_max = axis.get_xlim()
         y_min, y_max = axis.get_ylim()
         axis.set_aspect(abs((x_max - x_min) / (y_max - y_min)) * 0.8, adjustable="box")
