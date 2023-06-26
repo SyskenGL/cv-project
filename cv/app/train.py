@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import torch
+from pathlib import Path
 import matplotlib.pyplot as plt
 from cv.core.dexpression import DeXpression
 from cv.dataset.loader import CKPLoader, MMILoader
@@ -10,7 +11,7 @@ from cv.dataset.loader import CKPLoader, MMILoader
 
 if __name__ == "__main__":
 
-    save_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../data")
+    save_path = os.path.join(Path(os.path.dirname(__file__)).parent, "data")
     logging.basicConfig(
         format="\n%(asctime)s [%(levelname)-5.5s] \n%(message)s\n",
         level=logging.DEBUG,

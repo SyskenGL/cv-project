@@ -125,7 +125,7 @@ class DeXpression(nn.Module):
             len(self._loader.Labels)
         ))
         for i in range(predicted_labels.size(dim=0)):
-            np_predicted_labels[i][predicted_labels[i]-1] = 1.0
+            np_predicted_labels[i][predicted_labels[i]] = 1.0
         return self._loader.decode(np_predicted_labels)
 
     def validate(self, dataset: Dataset, output: bool = False) -> dict:

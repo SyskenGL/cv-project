@@ -2,8 +2,11 @@
 from __future__ import annotations
 import os
 import cv2
+import torch
 import numpy as np
+from pathlib import Path
 from dataclasses import dataclass
+from cv.core.dexpression import DeXpression
 
 
 @dataclass
@@ -105,4 +108,31 @@ class FaceDetector:
 
 class EmotionRecognizer:
 
-    pass
+    def __init__(self, mtype: str = "CKP"):
+        if mtype.upper() not in list(DeXpression.MType.__members__.keys()):
+            raise ValueError(
+                f"mtype must be one of "
+                f"{list(DeXpression.MType.__members__.keys())}"
+                f" - provided {mtype}"
+            )
+        self._path = os.path.join(
+            Path(os.path.dirname(__file__)).parent, "data", "models"
+        )
+        self._model = DeXpression()
+        self._model.load_state_dict(
+            torch.load(os.path.join(self._path, f"{mtype.lower()}.net"))
+        )
+
+    def recognize(self, frame: np.ndarray, normalize: bool = True) -> str:
+        grayscale = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(grayscale, (224, 224))
+        image = resized[np.newaxis, np.newaxis, ...]
+        image = image.astype('float32')
+        image = image / 255 if normalize else image
+        tensor = torch.from_numpy(image)
+        print(tensor.size())
+        print(self._model.predict(tensor))
+
+    @property
+    def path(self) -> str:
+        return self._path
