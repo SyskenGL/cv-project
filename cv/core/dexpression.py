@@ -154,7 +154,7 @@ class DeXpression(nn.Module):
         splits: int = 10,
         epochs: int = 25,
         batch_size: int = 32,
-        learning_rate: float = 0.001,
+        learning_rate: float = 0.0001,
         output: bool = False,
         mtype: str = "CKP"
     ) -> list[dict]:

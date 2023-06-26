@@ -34,7 +34,7 @@ if __name__ == "__main__":
     # Model Training
     model = DeXpression()
     training_set, validation_test = loader.dataset.slice(portion=0.25)
-    stats = model.fit(training_set, validation_test, epochs=1)
+    stats = model.fit(training_set, validation_test)
 
     # Saving trained model
     torch.save(
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         os.path.join(
             save_path,
             "models",
-            f"{['mmi', 'ck+', 'ck+48'][int(choice)]}"
+            f"{['mmi', 'ckp', 'ckp48'][int(choice)]}"
             f"_{time.strftime('%Y%m%d-%H%M%S')}.net"
         )
     )
@@ -86,7 +86,8 @@ if __name__ == "__main__":
             os.path.join(
                 save_path,
                 "plots",
-                f"plt_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
+                f"{['mmi', 'ckp', 'ckp48'][int(choice)]}"
+                f"_plt_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
             ),
             bbox_inches="tight",
             dpi=600

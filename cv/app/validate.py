@@ -38,7 +38,6 @@ if __name__ == "__main__":
     fold_stats = DeXpression.cross_validate(
         loader.dataset,
         output=True,
-        epochs=2,
         mtype=["MMI", "CKP", "CKP48"][int(choice)]
     )
     cm_list = []
@@ -63,8 +62,8 @@ if __name__ == "__main__":
         os.path.join(
             save_path,
             "plots",
-            f"cm_{['mmi', 'ck+', 'ck+48'][int(choice)]}"
-            f"_{time.strftime('%Y%m%d-%H%M%S')}.png"
+            f"{['mmi', 'ckp', 'ckp48'][int(choice)]}"
+            f"_cm_{time.strftime('%Y%m%d-%H%M%S')}.png"
         ),
         bbox_inches="tight",
         dpi=600
@@ -108,8 +107,8 @@ if __name__ == "__main__":
                 os.path.join(
                     save_path,
                     "plots",
-                    f"plt_{['mmi', 'ck+', 'ck+48'][int(choice)]}_"
-                    f"{dataset}_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
+                    f"{['mmi', 'ckp', 'ckp48'][int(choice)]}"
+                    f"_plt_{dataset}_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
                 ),
                 bbox_inches="tight",
                 dpi=600
