@@ -118,7 +118,10 @@ if __name__ == "__main__":
         total_images[emotion] += len(iframes)
         save_path = os.path.join(sys.argv[2], labels[emotion])
         for i in range(len(iframes)):
-            cv2.imwrite(os.path.join(save_path, f"{sid}-{i:03}.png"), iframes[i])
+            cv2.imwrite(
+                os.path.join(save_path, f"{sid}-{i:03}.png"),
+                cv2.cvtColor(iframes[i], cv2.COLOR_BGR2GRAY)
+            )
         print(
             f"\t{len(iframes)} images representing {labels[emotion]} "
             f"saved in folder {os.path.join(save_path)}"
