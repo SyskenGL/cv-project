@@ -8,11 +8,13 @@ if __name__ == "__main__":
 
     vcap = cv2.VideoCapture(0)
     faceDetector = FaceDetector(min_neighbors=5, min_size=(100, 100))
-    emotionRecognizer = EmotionRecognizer("CKP")
+    emotionRecognizer = EmotionRecognizer("MMI")
 
     while True:
-        _, frame = vcap.read()
-        faces = vcap.detect(frame)
+        ret, frame = vcap.read()
+        if not ret:
+            break
+        faces = faceDetector.detect(frame)
         for face in faces:
             image = frame[
                 face.tl[1]:face.br[1],

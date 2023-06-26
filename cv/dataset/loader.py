@@ -73,7 +73,7 @@ class Dataset:
                 f"largest possible size {self.size}"
                 f" - provided {size}"
             )
-        choices = np.random.permutation(size)
+        choices = np.random.choice(self.size, size)
         data = self.data[choices]
         labels = self.labels[choices]
         return Dataset(data, labels)

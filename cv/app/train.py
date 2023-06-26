@@ -11,7 +11,9 @@ from cv.dataset.loader import CKPLoader, MMILoader
 
 if __name__ == "__main__":
 
-    save_path = os.path.join(Path(os.path.dirname(__file__)).parent, "data")
+    save_path = os.path.join(
+        Path(os.path.dirname(os.path.abspath(__file__))).parent, "data"
+    )
     logging.basicConfig(
         format="\n%(asctime)s [%(levelname)-5.5s] \n%(message)s\n",
         level=logging.DEBUG,
@@ -33,7 +35,7 @@ if __name__ == "__main__":
     loader.load()
 
     # Model Training
-    model = DeXpression()
+    model = DeXpression(["MMI", "CKP", "CKP48"][int(choice)])
     training_set, validation_test = loader.dataset.slice(portion=0.25)
     stats = model.fit(training_set, validation_test)
 
@@ -67,6 +69,7 @@ if __name__ == "__main__":
     # Plotting
     for metric in ["loss", "accuracy"]:
         figure, axis = plt.subplots()
+        axis.set_title(f"Training & Validation {metric.capitalize()} Plot")
         axis.set_xlabel("Epochs", labelpad=10)
         axis.set_ylabel(metric.capitalize(), labelpad=10)
         axis.plot(

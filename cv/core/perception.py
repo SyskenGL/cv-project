@@ -118,7 +118,7 @@ class EmotionRecognizer:
         self._path = os.path.join(
             Path(os.path.dirname(__file__)).parent, "data", "models"
         )
-        self._model = DeXpression()
+        self._model = DeXpression(mtype)
         self._model.load_state_dict(
             torch.load(os.path.join(self._path, f"{mtype.lower()}.net"))
         )
@@ -130,9 +130,12 @@ class EmotionRecognizer:
         image = image.astype('float32')
         image = image / 255 if normalize else image
         tensor = torch.from_numpy(image)
-        print(tensor.size())
-        print(self._model.predict(tensor))
+        return self._model.predict(tensor)[0]
 
     @property
     def path(self) -> str:
         return self._path
+
+    @property
+    def model(self) -> DeXpression:
+        return self._model

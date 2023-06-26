@@ -28,7 +28,7 @@ class DeXpression(nn.Module):
                 f"{list(DeXpression.MType.__members__.keys())}"
                 f" - provided {mtype}"
             )
-        self._loader = getattr(DeXpression.MType.CKP, mtype).value
+        self._loader = getattr(DeXpression.MType, mtype.upper()).value
         # PPB
         self._conv_1 = nn.Conv2d(
             in_channels=1, out_channels=64,
@@ -116,17 +116,24 @@ class DeXpression(nn.Module):
         logits = self._softmax(output)
         return logits
 
-    def predict(self, in_data: torch.Tensor) -> list:
+    def predict(self, in_data: torch.Tensor, threshold: float = 0.9) -> list:
+        if not 0 < threshold < 1:
+            raise ValueError(
+                f"threshold must be in (0, 1) - provided {threshold}"
+            )
         self.eval()
-        predictions = self(in_data)
-        _, predicted_labels = torch.max(predictions, 1)
+        predictions = torch.exp(self(in_data))
+        probabilities, predicted_labels = torch.max(predictions, 1)
         np_predicted_labels = np.zeros((
-            predicted_labels.size(dim=0),
-            len(self._loader.Labels)
+            predicted_labels.size(dim=0), len(self._loader.Labels)
         ))
         for i in range(predicted_labels.size(dim=0)):
             np_predicted_labels[i][predicted_labels[i]] = 1.0
-        return self._loader.decode(np_predicted_labels)
+        return [
+            self._loader.decode(np_predicted_labels[i:])[0]
+            if probabilities[i] > threshold else None
+            for i in range(predicted_labels.size(dim=0))
+        ]
 
     def validate(self, dataset: Dataset, output: bool = False) -> dict:
         if dataset.size == 0:
@@ -184,7 +191,7 @@ class DeXpression(nn.Module):
         validation_set: Optional[Dataset] = None,
         epochs: int = 25,
         batch_size: int = 32,
-        learning_rate: float = 0.001
+        learning_rate: float = 0.0001
     ) -> list:
 
         if training_set.size == 0:

@@ -14,7 +14,9 @@ from sklearn.metrics import confusion_matrix as cm
 
 if __name__ == "__main__":
 
-    save_path = os.path.join(Path(os.path.dirname(__file__)).parent, "data")
+    save_path = os.path.join(
+        Path(os.path.dirname(os.path.abspath(__file__))).parent, "data"
+    )
     logging.basicConfig(
         format="\n%(asctime)s [%(levelname)-5.5s] \n%(message)s\n",
         level=logging.DEBUG,
@@ -95,6 +97,7 @@ if __name__ == "__main__":
     for dataset in ["training", "validation"]:
         for metric in ["loss", "accuracy"]:
             figure, axis = plt.subplots()
+            axis.set_title(f"K-Fold {dataset.capitalize()} {metric.capitalize()} Plot")
             axis.set_xlabel("Epochs", labelpad=10)
             axis.set_ylabel(metric.capitalize(), labelpad=10)
             for i in range(len(folds_plot_data)):
