@@ -123,14 +123,19 @@ class EmotionRecognizer:
             torch.load(os.path.join(self._path, f"{mtype.lower()}.net"))
         )
 
-    def recognize(self, frame: np.ndarray, normalize: bool = True) -> str:
+    def recognize(
+        self,
+        frame: np.ndarray,
+        normalize: bool = True,
+        threshold: float = 0.5
+    ) -> str:
         grayscale = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         resized = cv2.resize(grayscale, (224, 224))
         image = resized[np.newaxis, np.newaxis, ...]
         image = image.astype('float32')
         image = image / 255 if normalize else image
         tensor = torch.from_numpy(image)
-        return self._model.predict(tensor)[0]
+        return self._model.predict(tensor, threshold)[0]
 
     @property
     def path(self) -> str:

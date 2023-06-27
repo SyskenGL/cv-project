@@ -11,10 +11,10 @@ if __name__ == "__main__":
         choice = input("\n \u2022 Dataset [0: MMI | 1: CK+ | 2: CK+48]: ")
 
     vcap = cv2.VideoCapture(0)
-    faceDetector = FaceDetector(min_neighbors=5, min_size=(100, 100))
+    faceDetector = FaceDetector(min_neighbors=5, min_size=(150, 150))
     emotionRecognizer = EmotionRecognizer(["MMI", "CKP", "CKP48"][int(choice)])
 
-    emotionRecognizerDelay = 30
+    emotionRecognizerDelay = 60
     counter = 0
     emotion = ""
 
