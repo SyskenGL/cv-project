@@ -1,13 +1,14 @@
 from __future__ import annotations
+from typing import Type
+import os
+import time
 import logging
 import math
 import torch
 import torch.nn as nn
 import numpy as np
-from enum import Enum
 from typing import Optional
-from cv.dataset.loader import Dataset
-from cv.dataset.loader import CKPLoader, MMILoader
+from cv.dataset.loader import Dataset, DType, Loader
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -15,20 +16,10 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class DeXpression(nn.Module):
 
-    class MType(Enum):
-        CKP = CKPLoader
-        CKP48 = CKPLoader
-        MMI = MMILoader
-
-    def __init__(self, mtype: str = "CKP"):
+    def __init__(self, dtype: Type[DType]):
         super().__init__()
-        if mtype.upper() not in DeXpression.MType.__members__:
-            raise ValueError(
-                f"mtype must be one of "
-                f"{list(DeXpression.MType.__members__.keys())}"
-                f" - provided {mtype}"
-            )
-        self._loader = getattr(DeXpression.MType, mtype.upper()).value
+        self._dtype = dtype
+        self._loader = Loader(dtype)
         # PPB
         self._conv_1 = nn.Conv2d(
             in_channels=1, out_channels=64,
@@ -76,7 +67,7 @@ class DeXpression(nn.Module):
         # Classifier
         self._lfc = nn.Linear(
             in_features=272*13**2,
-            out_features=len(self._loader.Labels)
+            out_features=len(self._dtype.Labels)
         )
         self._bnorm = nn.BatchNorm2d(272)
         self._dropout = nn.Dropout(p=0.2)
@@ -125,7 +116,7 @@ class DeXpression(nn.Module):
         predictions = torch.exp(self(in_data))
         probabilities, predicted_labels = torch.max(predictions, 1)
         np_predicted_labels = np.zeros((
-            predicted_labels.size(dim=0), len(self._loader.Labels)
+            predicted_labels.size(dim=0), len(self._dtype.Labels)
         ))
         for i in range(predicted_labels.size(dim=0)):
             np_predicted_labels[i][predicted_labels[i]] = 1.0
@@ -158,17 +149,17 @@ class DeXpression(nn.Module):
     @staticmethod
     def cross_validate(
         dataset: Dataset,
+        dtype: Type[DType],
         splits: int = 10,
         epochs: int = 25,
         batch_size: int = 32,
         learning_rate: float = 0.0001,
         output: bool = False,
-        mtype: str = "CKP"
     ) -> list[dict]:
         stats = []
         folds = dataset.kfold(splits)
         for k, (training_set, validation_set) in enumerate(folds):
-            model = DeXpression(mtype)
+            model = DeXpression(dtype)
             model._logger.info(
                 f"\033[1m \u25fc Cross validation: "
                 f"\033[0mfold {k + 1} of {splits}\033[0m"
@@ -268,3 +259,25 @@ class DeXpression(nn.Module):
             self._logger.info(log)
 
         return epoch_stats
+
+    def save(self, path: str = None):
+        path = (
+            path if path else
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "models",
+                f"{self._dtype.name()}_{time.strftime('%Y%m%d-%H%M%S')}.net"
+            )
+        )
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: str = None):
+        path = (
+            path if path else
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "models",
+                f"{self._dtype.name()}.net"
+            )
+        )
+        self.load_state_dict(torch.load(path))

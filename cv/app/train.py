@@ -2,53 +2,43 @@ import logging
 import os
 import sys
 import time
-import torch
-from pathlib import Path
 import matplotlib.pyplot as plt
+import cv.dataset.loader as loaders
 from cv.core.dexpression import DeXpression
-from cv.dataset.loader import CKPLoader, MMILoader
 
 
 if __name__ == "__main__":
 
-    save_path = os.path.join(
-        Path(os.path.dirname(os.path.abspath(__file__))).parent, "data"
-    )
     logging.basicConfig(
         format="\n%(asctime)s [%(levelname)-5.5s] \n%(message)s\n",
         level=logging.DEBUG,
         handlers=[
             logging.StreamHandler(sys.stdout),
             logging.FileHandler(
-                os.path.join(save_path, "logs", f"{time.strftime('%Y%m%d-%H%M%S')}.log"),
+                os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "logs",
+                    f"{time.strftime('%Y%m%d-%H%M%S')}.log"
+                ),
                 encoding="utf-8"
             )
         ]
     )
 
     # Loading Dataset
+    choices = [loaders.MMI, loaders.CKP, loaders.CKP48, loaders.FKT]
     choice = None
-    while choice not in ["0", "1", "2"]:
-        choice = input("\n \u2022 Dataset [0: MMI | 1: CK+ | 2: CK+48]: ")
-    loaders = [MMILoader(), CKPLoader(), CKPLoader(version48=True)]
-    loader = loaders[int(choice)]
+    while choice not in ["0", "1", "2", "3"]:
+        choice = input("\n \u2022 Dataset [0: MMI - 1: CKP - 2: CKP48 - 3: FKT]: ")
+    dtype = choices[int(choice)]
+    loader = loaders.Loader(dtype)
     loader.load()
 
     # Model Training
-    model = DeXpression(["MMI", "CKP", "CKP48"][int(choice)])
+    model = DeXpression(dtype)
     training_set, validation_test = loader.dataset.slice(portion=0.25)
     stats = model.fit(training_set, validation_test)
-
-    # Saving trained model
-    torch.save(
-        model.state_dict(),
-        os.path.join(
-            save_path,
-            "models",
-            f"{['mmi', 'ckp', 'ckp48'][int(choice)]}"
-            f"_{time.strftime('%Y%m%d-%H%M%S')}.net"
-        )
-    )
+    model.save()
 
     # Gather plot data
     plot_data = {
@@ -88,10 +78,10 @@ if __name__ == "__main__":
         axis.legend(loc=("lower right" if metric == "accuracy" else "upper right"))
         figure.savefig(
             os.path.join(
-                save_path,
+                os.path.dirname(os.path.abspath(__file__)),
                 "plots",
-                f"{['mmi', 'ckp', 'ckp48'][int(choice)]}"
-                f"_plt_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
+                f"{dtype.name()}_"
+                f"plt_{metric}_{time.strftime('%Y%m%d-%H%M%S')}.png"
             ),
             bbox_inches="tight",
             dpi=600

@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 from __future__ import annotations
+from typing import Type
 import os
 import cv2
 import torch
 import numpy as np
 from pathlib import Path
 from dataclasses import dataclass
+from cv.dataset.loader import DType
 from cv.core.dexpression import DeXpression
 
 
@@ -108,20 +110,10 @@ class FaceDetector:
 
 class EmotionRecognizer:
 
-    def __init__(self, mtype: str = "CKP"):
-        if mtype.upper() not in list(DeXpression.MType.__members__.keys()):
-            raise ValueError(
-                f"mtype must be one of "
-                f"{list(DeXpression.MType.__members__.keys())}"
-                f" - provided {mtype}"
-            )
-        self._path = os.path.join(
-            Path(os.path.dirname(__file__)).parent, "data", "models"
-        )
-        self._model = DeXpression(mtype)
-        self._model.load_state_dict(
-            torch.load(os.path.join(self._path, f"{mtype.lower()}.net"))
-        )
+    def __init__(self, dtype: Type[DType]):
+        self._path = os.path.join(Path(os.path.dirname(__file__)), "models")
+        self._model = DeXpression(dtype)
+        self._model.load()
 
     def recognize(
         self,

@@ -6,5 +6,5 @@ setup(
     name="cv",
     version="1.0.0",
     packages=find_packages(),
-    python_requires=">=3.11"
+    python_requires=">=3.8"
 )

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from typing import Type
 import os
 import cv2
 import torch
@@ -10,12 +11,18 @@ from enum import Enum, auto
 
 class Dataset:
 
-    def __init__(self, data: np.ndarray, labels: np.ndarray):
+    def __init__(self, dtype: Type[DType], data: np.ndarray, labels: np.ndarray):
         if data.shape[0] != labels.shape[0]:
             raise ValueError(
                 f"data and label sizes do not match "
                 f"({data.shape[0]} != {labels.shape[0]})"
             )
+        if len(labels.shape) != 2 or labels.shape[1] != len(dtype.Labels):
+            raise ValueError(
+                f"expected labels of shape ({labels.shape[0]}, {len(dtype.Labels)})"
+                f" provided {labels.shape}"
+            )
+        self._dtype = dtype
         self._data = data
         self._labels = labels
 
@@ -39,7 +46,10 @@ class Dataset:
         rt_labels = self.labels[choices[lt_dataset_size:], :]
         lt_data = self.data[choices[:lt_dataset_size], :]
         lt_labels = self.labels[choices[:lt_dataset_size], :]
-        return Dataset(lt_data, lt_labels), Dataset(rt_data, rt_labels)
+        return (
+            Dataset(self._dtype, lt_data, lt_labels),
+            Dataset(self._dtype, rt_data, rt_labels)
+        )
 
     def kfold(
         self,
@@ -60,10 +70,11 @@ class Dataset:
         return [
             (
                 Dataset(
+                    self._dtype,
                     np.concatenate(data[:k] + data[k+1:], axis=0),
                     np.concatenate(labels[:k] + labels[k+1:], axis=0)
                 ),
-                Dataset(data[k], labels[k])
+                Dataset(self._dtype, data[k], labels[k])
             ) for k in range(splits)
         ]
 
@@ -76,7 +87,7 @@ class Dataset:
         choices = np.random.choice(self.size, size)
         data = self.data[choices]
         labels = self.labels[choices]
-        return Dataset(data, labels)
+        return Dataset(self._dtype, data, labels)
 
     def torch(self):
         data = torch.from_numpy(self._data).type(torch.FloatTensor)
@@ -99,41 +110,46 @@ class Dataset:
     def shape(self) -> tuple:
         return self._labels.shape
 
+    @property
+    def dtype(self) -> Type[DType]:
+        return self._dtype
+
     def __str__(self) -> str:
-        return f"[ Data: {str(self.data.shape)} - Labels: {str(self.labels.shape)} ]"
+        return f"[ Data: {str(self.data.shape)} " \
+               f"- Labels: {str(self.labels.shape)} ]"
 
 
-class Loader:
-
-    def __init__(self):
-        self._dataset = None
-        self._path = None
-        self._logger = logging.getLogger(self.__class__.__name__)
-
-    @staticmethod
-    def encode(labels: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
-
-    @staticmethod
-    def decode(labels: np.ndarray) -> np.ndarray:
-        raise NotImplementedError
-
-    def load(self, **kwargs: dict) -> None:
-        raise NotImplementedError
-
-    @property
-    def dataset(self) -> Dataset:
-        return self._dataset
-
-    @property
-    def path(self):
-        return self._path
-
-
-class CKPLoader(Loader):
+class DType:
 
     class Labels(Enum):
-        ANGER = auto()
+        pass
+
+    def __init__(self):
+        raise Exception(
+            f"{self.__class__.__name__} is an abstract class and cannot be instantiated"
+        )
+
+    @staticmethod
+    def name() -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def description() -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def base_path() -> str:
+        return os.path.join(os.path.dirname(__file__), "raw")
+
+    @staticmethod
+    def path() -> str:
+        raise NotImplementedError
+
+
+class CKP(DType):
+
+    class Labels(Enum):
+        ANGER = 0
         CONTEMPT = auto()
         DISGUST = auto()
         FEAR = auto()
@@ -141,109 +157,128 @@ class CKPLoader(Loader):
         SADNESS = auto()
         SURPRISE = auto()
 
-    def __init__(self, version48: bool = False):
-        super().__init__()
-        self._dataset = None
-        version = "CK+48" if version48 else "CK+"
-        self._path = os.path.join(os.path.dirname(__file__), "raw", version)
+    @staticmethod
+    def name() -> str:
+        return "ckp"
 
     @staticmethod
-    def encode(labels: np.ndarray) -> np.ndarray:
-        if len(labels.shape) != 1:
-            raise ValueError("labels shape must be 1-dimensional")
-        encoded_labels = np.zeros(shape=(labels.shape[0], len(CKPLoader.Labels)))
-        for n in range(labels.shape[0]):
-            if not 1 <= labels[n] <= len(CKPLoader.Labels):
-                raise ValueError(
-                    f"labels value must be in [1, {len(CKPLoader.Labels)})"
-                    f" - provided {labels[n]}"
-                )
-            encoded_labels[n][labels[n]-1] = 1
-        return encoded_labels
+    def description() -> str:
+        raise "CKP: Cohn-Kanade Plus"
 
     @staticmethod
-    def decode(labels: np.ndarray) -> list:
-        if len(labels.shape) != 2 or labels.shape[1] != len(CKPLoader.Labels):
-            raise ValueError(
-                f"labels must have shape (?, {len(CKPLoader.Labels)})"
-                f" - provided {labels.shape}"
-            )
-        labels = np.array([
-            np.argmax(labels[n, :]) + 1 for n in range(labels.shape[0])
-        ])
-        return [CKPLoader.Labels(label).name.lower() for label in labels]
-
-    def load(self, **kwargs: dict) -> None:
-        data, labels = [], []
-        for folder in os.listdir(self.path):
-            folder_path = os.path.join(self.path, folder)
-            files = os.listdir(folder_path)
-            self._logger.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
-            for filename in files:
-                image = (
-                    cv2.imread(
-                        os.path.join(folder_path, filename),
-                        cv2.IMREAD_GRAYSCALE
-                    ) if kwargs.get("grayscale", True) else
-                    cv2.imread(os.path.join(folder_path, filename))
-                )
-                image = cv2.resize(image, kwargs.get("shape", (224, 224)))
-                image = image[np.newaxis, ...]
-                image = image.astype('float32')
-                image = image/255 if kwargs.get("normalize", True) else image
-                data.append(image)
-                labels.append(getattr(CKPLoader.Labels, folder.upper()).value)
-        self._dataset = Dataset(
-            np.array(data),
-            self.encode(np.array(labels))
-        )
+    def path() -> str:
+        return os.path.join(DType.base_path(), "ckp")
 
 
-class MMILoader(Loader):
+class CKP48(DType):
 
     class Labels(Enum):
-        ANGER = auto()
+        ANGER = 0
+        CONTEMPT = auto()
         DISGUST = auto()
         FEAR = auto()
         HAPPINESS = auto()
         SADNESS = auto()
         SURPRISE = auto()
 
-    def __init__(self):
-        super().__init__()
-        self._dataset = None
-        self._path = os.path.join(os.path.dirname(__file__), "raw", "MMI")
+    @staticmethod
+    def name() -> str:
+        return "ckp48"
 
     @staticmethod
-    def encode(labels: np.ndarray) -> np.ndarray:
+    def description() -> str:
+        return "CKP48: Cohn-Kanade Plus 48x48"
+
+    @staticmethod
+    def path() -> str:
+        return os.path.join(DType.base_path(), "ckp48")
+
+
+class MMI(DType):
+
+    class Labels(Enum):
+        ANGER = 0
+        DISGUST = auto()
+        FEAR = auto()
+        HAPPINESS = auto()
+        SADNESS = auto()
+        SURPRISE = auto()
+
+    @staticmethod
+    def name() -> str:
+        return "mmi"
+
+    @staticmethod
+    def description() -> str:
+        return "MMI: Facial Expression"
+
+    @staticmethod
+    def path() -> str:
+        return os.path.join(DType.base_path(), "mmi")
+
+
+class FKT(DType):
+
+    class Labels(Enum):
+        ANGER = 0
+        DISGUST = auto()
+        FEAR = auto()
+        HAPPINESS = auto()
+        SADNESS = auto()
+        SURPRISE = auto()
+
+    @staticmethod
+    def name() -> str:
+        return "fkt"
+
+    @staticmethod
+    def description() -> str:
+        return "FKT: Merged MMI & CKP"
+
+    @staticmethod
+    def path() -> str:
+        return os.path.join(DType.base_path(), "fkt")
+
+
+class Loader:
+
+    def __init__(self, dtype: Type[DType]):
+        self._dataset = None
+        self._dtype = dtype
+        self._logger = logging.getLogger(self.__class__.__name__)
+
+    def encode(self, labels: np.ndarray) -> np.ndarray:
         if len(labels.shape) != 1:
             raise ValueError("labels shape must be 1-dimensional")
-        encoded_labels = np.zeros(shape=(labels.shape[0], len(MMILoader.Labels)))
+        encoded_labels = np.zeros(shape=(labels.shape[0], len(self._dtype.Labels)))
         for n in range(labels.shape[0]):
-            if not 1 <= labels[n] <= len(MMILoader.Labels):
+            if not 0 <= labels[n] <= len(self._dtype.Labels)-1:
                 raise ValueError(
-                    f"labels value must be in [1, {len(MMILoader.Labels)})"
+                    f"labels value must be in [0, {len(self._dtype.Labels)-1})"
                     f" - provided {labels[n]}"
                 )
-            encoded_labels[n][labels[n]-1] = 1
+            encoded_labels[n][labels[n]] = 1
         return encoded_labels
 
-    @staticmethod
-    def decode(labels: np.ndarray) -> list:
-        if len(labels.shape) != 2 or labels.shape[1] != len(MMILoader.Labels):
+    def decode(self, labels: np.ndarray, verbose: bool = True) -> np.ndarray:
+        if len(labels.shape) != 2 or labels.shape[1] != len(self._dtype.Labels):
             raise ValueError(
-                f"labels must have shape (?, {len(MMILoader.Labels)})"
+                f"labels must have shape (?, {len(self._dtype.Labels)})"
                 f" - provided {labels.shape}"
             )
         labels = np.array([
-            np.argmax(labels[n, :]) + 1 for n in range(labels.shape[0])
+            np.argmax(labels[n, :]) for n in range(labels.shape[0])
         ])
-        return [MMILoader.Labels(label).name.lower() for label in labels]
+        labels = (
+            [self._dtype.Labels(label).name.lower() for label in labels]
+            if verbose else labels
+        )
+        return labels
 
     def load(self, **kwargs: dict) -> None:
         data, labels = [], []
-        for folder in os.listdir(self.path):
-            folder_path = os.path.join(self.path, folder)
+        for folder in os.listdir(self._dtype.path()):
+            folder_path = os.path.join(self._dtype.path(), folder)
             files = os.listdir(folder_path)
             self._logger.debug(f" \u2022 Loading folder {folder} (files: {len(files)})")
             for filename in files:
@@ -259,8 +294,13 @@ class MMILoader(Loader):
                 image = image.astype('float32')
                 image = image/255 if kwargs.get("normalize", True) else image
                 data.append(image)
-                labels.append(getattr(MMILoader.Labels, folder.upper()).value)
+                labels.append(getattr(self._dtype.Labels, folder.upper()).value)
         self._dataset = Dataset(
+            self._dtype,
             np.array(data),
             self.encode(np.array(labels))
         )
+
+    @property
+    def dataset(self) -> Dataset:
+        return self._dataset

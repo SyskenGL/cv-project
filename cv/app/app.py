@@ -1,18 +1,21 @@
 #!/usr/bin/env python
 import cv2
+import cv.dataset.loader as loaders
 from cv.core.perception import FaceDetector
 from cv.core.perception import EmotionRecognizer
 
 
 if __name__ == "__main__":
 
+    choices = [loaders.MMI, loaders.CKP, loaders.CKP48, loaders.FKT]
     choice = None
-    while choice not in ["0", "1", "2"]:
-        choice = input("\n \u2022 Dataset [0: MMI | 1: CK+ | 2: CK+48]: ")
+    while choice not in ["0", "1", "2", "3"]:
+        choice = input("\n \u2022 Dataset [0: MMI - 1: CKP - 2: CKP48 - 3: FKT]: ")
 
     vcap = cv2.VideoCapture(0)
-    faceDetector = FaceDetector(min_neighbors=5, min_size=(150, 150))
-    emotionRecognizer = EmotionRecognizer(["MMI", "CKP", "CKP48"][int(choice)])
+    faceDetector = FaceDetector(min_neighbors=5, min_size=(100, 100))
+    dtype = choices[int(choice)]
+    emotionRecognizer = EmotionRecognizer(dtype)
 
     emotionRecognizerDelay = 60
     counter = 0
@@ -22,6 +25,7 @@ if __name__ == "__main__":
         ret, frame = vcap.read()
         if not ret:
             break
+        frame = cv2.flip(frame, 1)
         counter -= 1
         faces = faceDetector.detect(frame)
         for face in faces:
