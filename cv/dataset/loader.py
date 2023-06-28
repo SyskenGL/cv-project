@@ -126,7 +126,8 @@ class DType:
 
     def __init__(self):
         raise Exception(
-            f"{self.__class__.__name__} is an abstract class and cannot be instantiated"
+            f"{self.__class__.__name__}"
+            f" is an abstract class and cannot be instantiated"
         )
 
     @staticmethod
